@@ -1,0 +1,137 @@
+import React from 'react';
+import { sanitizeHTML } from '../../utils/sanitize';
+import './TemplateStyles.css';
+
+export default function ClassicTemplate({ state, themeColor, fontSize, fontFamily, spacing }) {
+  const { contact, design, workHistory, education, skills, summary, personalDetails, websites, certifications, languages } = state;
+  const sectionOrder = design.sectionOrder || [];
+
+  const fullName = [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Your Name';
+
+  const renderSection = (section) => {
+    switch (section) {
+      case 'summary':
+        if (!summary.content) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="summary">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Professional Summary</h2>
+            <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
+          </div>
+        );
+      case 'workHistory':
+        if (!workHistory.length) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="workHistory">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Work History</h2>
+            {workHistory.map(job => (
+              <div key={job.id} className="tmpl-item">
+                <div className="tmpl-item-header">
+                  <strong>{job.jobTitle}</strong>
+                  <span>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
+                </div>
+                <div className="tmpl-item-sub">
+                  {[job.employer, job.location].filter(Boolean).join(', ')}
+                </div>
+                {job.description && (
+                  <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      case 'education':
+        if (!education.length) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="education">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Education</h2>
+            {education.map(edu => (
+              <div key={edu.id} className="tmpl-item">
+                <div className="tmpl-item-header">
+                  <strong>{edu.degree || edu.level}</strong>
+                  <span>{edu.graduationDate}</span>
+                </div>
+                <div className="tmpl-item-sub">
+                  {[edu.schoolName, edu.fieldOfStudy].filter(Boolean).join(', ')}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      case 'skills':
+        if (!skills.textContent && !skills.ratings.length) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="skills">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Skills</h2>
+            {skills.textContent ? (
+              <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />
+            ) : (
+              <div className="tmpl-skills-grid">
+                {skills.ratings.map(s => <span key={s.id} className="tmpl-skill-pill">{s.name}</span>)}
+              </div>
+            )}
+          </div>
+        );
+      case 'websites':
+        if (!websites.length) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="websites">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Websites & Profiles</h2>
+            <ul className="tmpl-list">
+              {websites.map(w => <li key={w.id}>{w.url}</li>)}
+            </ul>
+          </div>
+        );
+      case 'personalDetails':
+        if (!personalDetails.dob && !personalDetails.nationality && !personalDetails.maritalStatus && !personalDetails.gender) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="personalDetails">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Personal Details</h2>
+            <div className="tmpl-details-grid">
+              {personalDetails.dob && <div><strong>DOB:</strong> {personalDetails.dob}</div>}
+              {personalDetails.nationality && <div><strong>Nationality:</strong> {personalDetails.nationality}</div>}
+              {personalDetails.maritalStatus && <div><strong>Status:</strong> {personalDetails.maritalStatus}</div>}
+              {personalDetails.gender && <div><strong>Gender:</strong> {personalDetails.gender}</div>}
+            </div>
+          </div>
+        );
+      case 'certifications':
+        if (!certifications.content) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="certifications">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Certifications</h2>
+            <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
+          </div>
+        );
+      case 'languages':
+        if (!languages.length) return null;
+        return (
+          <div className="tmpl-section" style={{ marginBottom: spacing }} key="languages">
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Languages</h2>
+            <div className="tmpl-details-grid">
+              {languages.map(lang => (
+                <div key={lang.id}><strong>{lang.language}:</strong> {lang.level}</div>
+              ))}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="template-classic" style={{ fontFamily, fontSize, color: '#333' }}>
+      <header className="classic-header" style={{ backgroundColor: themeColor, color: '#fff', padding: '24px 32px', textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '2.2em', fontWeight: 600, letterSpacing: '1px' }}>{fullName}</h1>
+        <div className="classic-contact" style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '12px', fontSize: '0.9em', opacity: 0.9 }}>
+          {contact.email && <span>{contact.email}</span>}
+          {contact.phone && <span>{contact.phone}</span>}
+          {(contact.city || contact.country) && <span>{[contact.city, contact.country].filter(Boolean).join(', ')}</span>}
+        </div>
+      </header>
+      <div className="classic-body" style={{ padding: '32px' }}>
+        {sectionOrder.map(renderSection)}
+      </div>
+    </div>
+  );
+}

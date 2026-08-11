@@ -1,0 +1,74 @@
+/* Template Base Styles */
+
+.tmpl-section {
+  page-break-inside: avoid;
+}
+
+.tmpl-heading {
+  margin-top: 0;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+  font-size: 1.4em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tmpl-item {
+  margin-bottom: 16px;
+}
+.tmpl-item:last-child {
+  margin-bottom: 0;
+}
+
+.tmpl-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font-size: 1.1em;
+}
+
+.tmpl-item-sub {
+  font-style: italic;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.tmpl-content {
+  line-height: 1.5;
+}
+.tmpl-content p {
+  margin-bottom: 8px;
+}
+.tmpl-content ul {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+.tmpl-content li {
+  margin-bottom: 4px;
+}
+
+/* Grids */
+.tmpl-skills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tmpl-skill-pill {
+  background: rgba(0,0,0,0.05);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.tmpl-list {
+  padding-left: 20px;
+}
+
+.tmpl-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}

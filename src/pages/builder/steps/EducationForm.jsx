@@ -1,0 +1,127 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useResume } from '../../../context/ResumeContext';
+import { DEGREE_OPTIONS } from '../../../data/templates';
+import StepNavigation from '../../../components/StepNavigation';
+import MonthYearSelect from '../../../components/MonthYearSelect';
+
+export default function EducationForm() {
+  const navigate = useNavigate();
+  const { dispatch } = useResume();
+  const [form, setForm] = useState({
+    schoolName: '', location: '', degree: '',
+    fieldOfStudy: '', graduationDate: '', coursework: '',
+  });
+  const [errors, setErrors] = useState({});
+  const [showEmptyModal, setShowEmptyModal] = useState(false);
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!form.schoolName.trim()) newErrors.schoolName = 'School name is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (!form.schoolName.trim()) {
+      setShowEmptyModal(true);
+      return false;
+    }
+    if (!validate()) return false;
+    dispatch({ type: 'ADD_EDUCATION', payload: form });
+    navigate('/builder/education-summary');
+    return false;
+  };
+
+  const handleSkip = () => {
+    navigate('/builder/skills-intro');
+  };
+
+  return (
+    <div className="step-page">
+      <h1>Tell us about your education</h1>
+      <p className="step-subtitle">Enter the details of your most recent or most relevant education.</p>
+
+      <div className="step-form">
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label" htmlFor="schoolName">School Name<span className="required">*</span></label>
+            <input id="schoolName" className={`form-input ${errors.schoolName ? 'error' : ''}`}
+              type="text" placeholder="e.g. University of Mumbai"
+              value={form.schoolName} onChange={e => handleChange('schoolName', e.target.value)} maxLength={200} />
+            {errors.schoolName && <span className="form-error">{errors.schoolName}</span>}
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="schoolLocation">School Location</label>
+            <input id="schoolLocation" className="form-input" type="text" placeholder="e.g. Mumbai, India"
+              value={form.location} onChange={e => handleChange('location', e.target.value)} maxLength={200} />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label" htmlFor="degree">Degree</label>
+            <select id="degree" className="form-input form-select"
+              value={form.degree} onChange={e => handleChange('degree', e.target.value)}>
+              <option value="">Select degree</option>
+              {DEGREE_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="fieldOfStudy">Field of Study</label>
+            <input id="fieldOfStudy" className="form-input" type="text" placeholder="e.g. Computer Science"
+              value={form.fieldOfStudy} onChange={e => handleChange('fieldOfStudy', e.target.value)} maxLength={200} />
+          </div>
+        </div>
+
+        <div className="form-group" style={{ maxWidth: 300 }}>
+          <label className="form-label" htmlFor="graduationDate">Graduation Date</label>
+          <MonthYearSelect id="graduationDate" 
+            value={form.graduationDate} onChange={val => handleChange('graduationDate', val)} />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="coursework">Relevant Coursework (optional)</label>
+          <textarea id="coursework" className="form-input" rows={3}
+            placeholder="e.g. Data Structures, Algorithms, Web Development"
+            value={form.coursework} onChange={e => handleChange('coursework', e.target.value)} maxLength={1000} />
+        </div>
+      </div>
+
+      <StepNavigation
+        backPath="/builder/education-level"
+        nextPath="/builder/education-summary"
+        nextLabel="Next"
+        onNext={handleNext}
+      />
+
+      {/* Empty State Modal */}
+      {showEmptyModal && (
+        <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="mobile-preview-content" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', background: 'white', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
+            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>×</button>
+            
+            <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Don't forget to include your educational background</h3>
+            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>
+              Employers want to know about your degrees, certifications, and relevant coursework.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <button className="btn btn-primary" onClick={() => setShowEmptyModal(false)} style={{ borderRadius: 30, padding: '12px', background: '#D91277', border: 'none' }}>
+                Add education
+              </button>
+              <button className="btn btn-ghost" onClick={handleSkip} style={{ color: 'var(--color-text-link)', fontWeight: 600, textDecoration: 'underline' }}>
+                No thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

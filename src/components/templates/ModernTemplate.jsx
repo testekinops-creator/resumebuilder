@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -31,7 +32,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
               <div key={job.id} className="tmpl-item">
                 <div className="tmpl-item-header" style={{ fontWeight: 'bold' }}>
                   <span style={{ color: '#1A202C' }}>{job.jobTitle}</span>
-                  <span style={{ color: themeColor, fontSize: '0.9em' }}>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
+                  <span style={{ color: themeColor, fontSize: '0.9em' }}>{formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}</span>
                 </div>
                 <div className="tmpl-item-sub" style={{ fontStyle: 'normal', fontWeight: '500' }}>
                   {[job.employer, job.location].filter(Boolean).join(' • ')}
@@ -52,7 +53,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
                   <span style={{ color: '#1A202C', fontWeight: 'bold' }}>{edu.degree || edu.level}</span>
-                  <span style={{ color: themeColor, fontSize: '0.9em' }}>{edu.graduationDate}</span>
+                  <span style={{ color: themeColor, fontSize: '0.9em' }}>{formatResumeMonth(edu.graduationDate)}</span>
                 </div>
                 <div className="tmpl-item-sub" style={{ fontStyle: 'normal' }}>
                   {[edu.schoolName, edu.fieldOfStudy].filter(Boolean).join(' • ')}
@@ -67,7 +68,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Expertise</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
-              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </div>
         );

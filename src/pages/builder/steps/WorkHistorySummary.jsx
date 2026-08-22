@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import { sanitizeHTML } from '../../../utils/sanitize';
+import { formatResumeDateRange } from '../../../utils/resumeDates';
 import StepNavigation from '../../../components/StepNavigation';
 import ResumeIcon from '../../../components/ResumeIcon';
 
@@ -29,9 +30,9 @@ export default function WorkHistorySummary() {
             <div className="entry-content">
               <div className="entry-title">{job.jobTitle || 'Untitled Position'}</div>
               <div className="entry-subtitle">
-                {job.employer}{job.location ? ` | ${job.location}` : ''}
-                {job.startDate ? ` | ${job.startDate}` : ''}
-                {job.endDate ? ` - ${job.endDate}` : job.currentJob ? ' - Present' : ''}
+                {[job.employer, job.location, formatResumeDateRange(job.startDate, job.endDate, job.currentJob)]
+                  .filter(Boolean)
+                  .join(' | ')}
               </div>
               {job.description && (
                 <div className="entry-description"

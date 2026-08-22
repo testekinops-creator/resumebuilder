@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import StepNavigation from '../../../components/StepNavigation';
 import RichTextEditor from '../../../components/RichTextEditor';
 import ResumeIcon from '../../../components/ResumeIcon';
-import { getTextSkillNames, syncRatingsWithTextSkills } from '../../../utils/skillRatings';
+import { getTextSkillNames, shouldShowSkillRatings, syncRatingsWithTextSkills } from '../../../utils/skillRatings';
 
 const ratingsAreEqual = (first = [], second = []) => (
   first.length === second.length && first.every((rating, index) => (
@@ -29,7 +29,7 @@ export default function SkillsEditor() {
   const [showEmptyModal, setShowEmptyModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const navigate = useNavigate();
-  const showRatings = state.skills.showRatings !== false;
+  const showRatings = shouldShowSkillRatings(state.skills);
 
   const aiSkillSource = searchSuggestions('skills', searchQuery || state.workHistory[0]?.jobTitle || 'Professional');
   const aiSkillSuggestions = [...(aiSkillSource?.expert || []), ...(aiSkillSource?.regular || [])].slice(0, 10);

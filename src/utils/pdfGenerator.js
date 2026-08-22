@@ -16,6 +16,7 @@ import {
   WidthType,
 } from 'docx';
 import { getCustomResumeSection, getResumeLayout } from './resumeSections';
+import { formatResumeDateRange, formatResumeMonth } from './resumeDates';
 
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
@@ -375,7 +376,7 @@ function createVectorResumePDF(state, resumeName) {
 
   const addWorkHistory = entries => entries.forEach(job => {
     const title = compactText(job.jobTitle) || 'Position';
-    const date = [job.startDate, job.currentJob ? 'Present' : job.endDate].filter(Boolean).join(' - ');
+    const date = formatResumeDateRange(job.startDate, job.endDate, job.currentJob);
     const employer = [job.employer, job.location].filter(Boolean).join(', ');
     ensureSpace(16);
     setFont('bold');
@@ -403,7 +404,7 @@ function createVectorResumePDF(state, resumeName) {
     pdf.text(pdf.splitTextToSize(title, 120), contentX, y);
     if (compactText(entry.graduationDate)) {
       setTextColor(accent);
-      pdf.text(compactText(entry.graduationDate), contentRight, y, { align: 'right' });
+      pdf.text(formatResumeMonth(entry.graduationDate), contentRight, y, { align: 'right' });
     }
     y += lineHeight(9.8 * fontScale) + 1;
     if (school) addText(school, { italic: true, color: '4B5563', size: 8.8, gap: 2.5 });
@@ -445,7 +446,7 @@ function createVectorResumePDF(state, resumeName) {
       case 'education': if (state.education?.length) addSection(title, () => addEducation(state.education), 14); break;
       case 'skills': {
         const textSkills = richTextBlocks(state.skills?.textContent).map(block => block.text);
-        const ratedSkills = state.skills?.showRatings === false
+        const ratedSkills = state.skills?.showRatings !== true
           ? ratedSkillEntries(state.skills?.ratings).map(skill => skill.name)
           : ratedSkillValues(state.skills?.ratings);
         const values = ratedSkills.length ? ratedSkills : textSkills;
@@ -749,7 +750,7 @@ function entryHeader(left, right, { font, color, rightColor = color, sidebar = f
 function workParagraphs(entries, { font, color, spacing, sidebar = false }) {
   return entries.flatMap(job => {
     const title = compactText(job.jobTitle) || 'Position';
-    const date = [job.startDate, job.currentJob ? 'Present' : job.endDate].filter(Boolean).join(' - ');
+    const date = formatResumeDateRange(job.startDate, job.endDate, job.currentJob);
     const employer = [job.employer, job.location].filter(Boolean).join(', ');
     return [
       entryHeader(title, date, { font, color, sidebar }),
@@ -766,7 +767,7 @@ function educationParagraphs(entries, { font, color, spacing, sidebar = false })
     const degree = compactText(entry.degree || entry.level || 'Education');
     const school = [entry.schoolName, entry.fieldOfStudy, entry.location].filter(Boolean).join(', ');
     return [
-      entryHeader(degree, compactText(entry.graduationDate), { font, color, sidebar }),
+      entryHeader(degree, formatResumeMonth(entry.graduationDate), { font, color, sidebar }),
       ...(school ? [paragraphText(school, { font, color: sidebar ? 'FFFFFF' : '555555', size: 18, style: DOCX_STYLE.metadata, keepNext: true, spacing: { before: 0, after: spacing.itemAfter, line: spacing.line }, runOptions: { italics: true } })] : []),
     ];
   });
@@ -784,7 +785,7 @@ function detailParagraphs(state, section, style) {
     case 'skills': {
       const ratedSkills = ratedSkillEntries(skills.ratings);
       return ratedSkills.length
-        ? skills.showRatings === false
+        ? skills.showRatings !== true
           ? itemParagraphs(ratedSkills.map(skill => skill.name), {
             font, color: textColor, sidebar, bullet: true, forceSidebarBullets: true, spacing,
           })

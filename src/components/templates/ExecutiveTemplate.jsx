@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -34,7 +35,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
                 </div>
                 <div className="tmpl-item-sub" style={{ display: 'flex', justifyContent: 'space-between', color: themeColor, fontWeight: 600, fontStyle: 'normal', marginBottom: '12px' }}>
                   <span>{[job.employer, job.location].filter(Boolean).join(', ')}</span>
-                  <span>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
+                  <span>{formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}</span>
                 </div>
                 {job.description && (
                   <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />
@@ -52,7 +53,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
                   <strong style={{ color: '#111' }}>{edu.degree || edu.level}</strong>
-                  <span style={{ color: themeColor, fontWeight: 600 }}>{edu.graduationDate}</span>
+                  <span style={{ color: themeColor, fontWeight: 600 }}>{formatResumeMonth(edu.graduationDate)}</span>
                 </div>
                 <div className="tmpl-item-sub" style={{ fontStyle: 'normal' }}>
                   {[edu.schoolName, edu.fieldOfStudy].filter(Boolean).join(', ')}
@@ -67,7 +68,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Core Competencies</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
-              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </div>
         );

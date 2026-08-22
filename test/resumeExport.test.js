@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import mammoth from 'mammoth';
 import { TEMPLATES } from '../src/data/templates.js';
 
 /**
@@ -13,13 +14,15 @@ import { TEMPLATES } from '../src/data/templates.js';
 async function loadPdfGenerator() {
   const sourceUrl = new URL('../src/utils/pdfGenerator.js', import.meta.url);
   const resumeSectionsUrl = new URL('../src/utils/resumeSections.js', import.meta.url).href;
+  const resumeDatesUrl = new URL('../src/utils/resumeDates.js', import.meta.url).href;
   const jsPdfUrl = import.meta.resolve('jspdf');
   const docxUrl = import.meta.resolve('docx');
   const source = await readFile(fileURLToPath(sourceUrl), 'utf8');
   const resolvableSource = source
     .replace("from 'jspdf'", `from '${jsPdfUrl}'`)
     .replace("from 'docx'", `from '${docxUrl}'`)
-    .replace("from './resumeSections'", `from '${resumeSectionsUrl}'`);
+    .replace("from './resumeSections'", `from '${resumeSectionsUrl}'`)
+    .replace("from './resumeDates'", `from '${resumeDatesUrl}'`);
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(resolvableSource).toString('base64')}`;
   return import(moduleUrl);
 }
@@ -230,6 +233,34 @@ test('prepares a DOCX artifact with the OOXML MIME type and ZIP signature', asyn
     [...new Uint8Array(await artifact.blob.slice(0, 2).arrayBuffer())],
     RESUME_EXPORT_FORMATS.docx.signature,
   );
+});
+
+test('DOCX output uses the shared professional month format', async () => {
+  const state = resumeState('developer');
+  state.workHistory = [{
+    id: 'work-1',
+    jobTitle: 'Engineer',
+    employer: 'Northstar Labs',
+    startDate: '2022-11',
+    endDate: 'Current',
+    currentJob: false,
+    description: '<p>Built dependable systems.</p>',
+  }];
+  state.education = [{
+    id: 'education-1',
+    degree: 'B.Sc.',
+    schoolName: 'City University',
+    graduationDate: '2021-07',
+  }];
+
+  const artifact = await prepareDOCXExport({ state, resumeName: 'Date Format Check' });
+  const { value: documentText } = await mammoth.extractRawText({
+    buffer: Buffer.from(await artifact.blob.arrayBuffer()),
+  });
+
+  assert.match(documentText, /November 2022 - Present/);
+  assert.match(documentText, /July 2021/);
+  assert.doesNotMatch(documentText, /2022-11|2021-07|Current/);
 });
 
 test('print does not hang when an already-failed image exists in the resume', async () => {

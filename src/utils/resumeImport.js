@@ -837,7 +837,11 @@ export function parseImportedResumeText(text) {
   const patch = {
     contact: contactResult.contact,
     summary: { content: paragraphHtml(summaryLines.length ? summaryLines : fallbackSummary) },
-    skills: { textContent: skills.length ? `<ul>${skills.map(skill => `<li>${escapeImportHtml(skill)}</li>`).join('')}</ul>` : '', ratings: [] },
+    skills: {
+      textContent: skills.length ? `<ul>${skills.map(skill => `<li>${escapeImportHtml(skill)}</li>`).join('')}</ul>` : '',
+      ratings: [],
+      showRatings: false,
+    },
     workHistory: experience,
     education,
     certifications: { content: certifications },

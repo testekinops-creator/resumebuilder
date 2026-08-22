@@ -3,55 +3,6 @@
   background: var(--color-surface-secondary);
 }
 
-/* Header */
-.dash-header {
-  background: var(--color-secondary);
-  padding: var(--space-3) var(--space-6);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
-}
-
-.dash-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  text-decoration: none;
-  color: white;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-lg);
-}
-
-.dash-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.dash-header .theme-toggle {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: var(--font-size-lg);
-  transition: all var(--transition-fast);
-  padding: 0;
-}
-
-.dash-header .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(15deg) scale(1.1);
-}
-
 /* Main Content */
 .dash-main {
   max-width: 1100px;

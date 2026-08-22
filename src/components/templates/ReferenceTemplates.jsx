@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -54,7 +55,7 @@ function TemplateSection({ state, section, themeColor, spacing, variant, sidebar
             <article className={`tmpl-item ${variant}-entry`} key={job.id}>
               <div className="tmpl-item-header">
                 <strong>{job.jobTitle}</strong>
-                <span>{[job.startDate, job.currentJob ? 'Present' : job.endDate].filter(Boolean).join(' - ')}</span>
+                <span>{formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}</span>
               </div>
               <div className="tmpl-item-sub">{[job.employer, job.location].filter(Boolean).join(', ')}</div>
               {job.description && <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />}
@@ -70,7 +71,7 @@ function TemplateSection({ state, section, themeColor, spacing, variant, sidebar
             <article className={`tmpl-item ${variant}-entry`} key={item.id}>
               <div className="tmpl-item-header">
                 <strong>{item.degree || item.level}</strong>
-                <span>{item.graduationDate}</span>
+                <span>{formatResumeMonth(item.graduationDate)}</span>
               </div>
               <div className="tmpl-item-sub">{[item.schoolName, item.fieldOfStudy, item.location].filter(Boolean).join(', ')}</div>
             </article>
@@ -82,7 +83,7 @@ function TemplateSection({ state, section, themeColor, spacing, variant, sidebar
         <section className={classes} data-resume-section-id={section} style={{ marginBottom: spacing }} key={section}>
           {title}
           {skills.ratings?.some(skill => skill?.name?.trim())
-            ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+            ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
             : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
         </section>
       ) : null;

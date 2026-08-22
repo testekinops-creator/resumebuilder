@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { listResumes, deleteResumeById, duplicateResume, loadResumeById, exportResumeJSON } from '../../utils/storage';
 import { useResume } from '../../context/ResumeContext';
-import { useTheme } from '../../hooks/useTheme';
 import { TEMPLATES } from '../../data/templates';
+import Navbar from '../../components/Navbar';
 import ResumeIcon from '../../components/ResumeIcon';
 import './Dashboard.css';
 
@@ -12,7 +12,6 @@ export default function Dashboard() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const navigate = useNavigate();
   const { dispatch } = useResume();
-  const { isDark, toggle } = useTheme();
 
   useEffect(() => {
     setResumes(listResumes());
@@ -58,30 +57,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      {/* Top Bar */}
-      <header className="dash-header">
-        <Link to="/" className="dash-brand">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <defs>
-              <linearGradient id="dashLogoGrad" x1="0" y1="0" x2="32" y2="32">
-                <stop offset="0%" stopColor="#E84D39" />
-                <stop offset="100%" stopColor="#E91E8C" />
-              </linearGradient>
-            </defs>
-            <rect width="32" height="32" rx="8" fill="url(#dashLogoGrad)" />
-            <path d="M8 8h6v16H8V8zm10 0h6v4h-6V8zm0 6h6v4h-6v-4zm0 6h6v4h-6v-4z" fill="white" opacity="0.9" />
-          </svg>
-          <span>Resume Builder</span>
-        </Link>
-        <div className="dash-header-actions">
-          <button className="btn-icon theme-toggle" onClick={toggle} title={isDark ? 'Light Mode' : 'Dark Mode'}>
-            <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
-          </button>
-          <button className="btn btn-accent btn-sm" onClick={handleNewResume}>
-            <ResumeIcon name="add" size={16} />New Resume
-          </button>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
       <main className="dash-main">

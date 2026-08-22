@@ -30,6 +30,7 @@ JavaScript, React, Accessibility | Testing
   });
   assert.match(result.patch.summary.content, /Product-minded engineer/);
   assert.match(result.patch.skills.textContent, /<li>JavaScript<\/li>/);
+  assert.equal(result.patch.skills.showRatings, false);
   assert.equal(result.patch.workHistory[0].jobTitle, 'Senior Software Engineer');
   assert.match(result.patch.workHistory[0].description, /<ul>/);
   assert.equal(result.patch.education[0].degree, 'Bachelor of Science in Computer Science');

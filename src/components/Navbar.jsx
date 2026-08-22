@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import ResumeIcon from './ResumeIcon';
 import './Navbar.css';
@@ -34,7 +34,18 @@ export default function Navbar() {
           >
             <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
           </button>
-          <Link to="/get-started" className="btn btn-accent btn-sm">
+          <NavLink
+            to="/dashboard"
+            end
+            className={({ isActive }) => `btn btn-sm navbar-my-resumes${isActive ? ' is-active' : ''}`}
+            aria-label="My Resumes"
+            title="My Resumes"
+          >
+            <ResumeIcon name="document" size={17} />
+            <span className="navbar-my-resumes-long">My Resumes</span>
+            <span className="navbar-my-resumes-short">Resumes</span>
+          </NavLink>
+          <Link to="/get-started" className="btn btn-accent btn-sm navbar-build-cta">
             <span className="navbar-cta-long">Build My Resume</span>
             <span className="navbar-cta-short">Build Resume</span>
           </Link>

@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
+import { formatResumeMonth } from '../../../utils/resumeDates';
 import StepNavigation from '../../../components/StepNavigation';
 import ResumeIcon from '../../../components/ResumeIcon';
 
@@ -26,8 +27,9 @@ export default function EducationSummary() {
             <div className="entry-content">
               <div className="entry-title">{edu.degree || edu.level || 'Education'} {edu.fieldOfStudy ? `in ${edu.fieldOfStudy}` : ''}</div>
               <div className="entry-subtitle">
-                {edu.schoolName}{edu.location ? ` | ${edu.location}` : ''}
-                {edu.graduationDate ? ` | Expected ${edu.graduationDate}` : ''}
+                {[edu.schoolName, edu.location, edu.graduationDate ? `Expected ${formatResumeMonth(edu.graduationDate)}` : '']
+                  .filter(Boolean)
+                  .join(' | ')}
               </div>
               {!edu.coursework && (
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-error)', marginTop: 'var(--space-1)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>

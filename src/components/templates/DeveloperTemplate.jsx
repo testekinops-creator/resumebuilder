@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -39,7 +40,7 @@ export default function DeveloperTemplate({ state, themeColor, fontSize, fontFam
               <div key={job.id} className="tmpl-item developer-entry">
                 <strong className="developer-entry-title">{job.jobTitle}</strong>
                 <div className="developer-employer">{[job.employer, job.location].filter(Boolean).join(', ')}</div>
-                <div className="developer-date">{[job.startDate, job.currentJob ? 'Present' : job.endDate].filter(Boolean).join(' - ')}</div>
+                <div className="developer-date">{formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}</div>
                 {job.description && <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />}
               </div>
             ))}
@@ -54,7 +55,7 @@ export default function DeveloperTemplate({ state, themeColor, fontSize, fontFam
               <div key={edu.id} className="tmpl-item developer-entry">
                 <strong className="developer-entry-title">{edu.degree || edu.level}</strong>
                 <div className="developer-employer">{[edu.schoolName, edu.fieldOfStudy, edu.location].filter(Boolean).join(', ')}</div>
-                {edu.graduationDate && <div className="developer-date">{edu.graduationDate}</div>}
+                {edu.graduationDate && <div className="developer-date">{formatResumeMonth(edu.graduationDate)}</div>}
               </div>
             ))}
           </section>
@@ -65,7 +66,7 @@ export default function DeveloperTemplate({ state, themeColor, fontSize, fontFam
           <section className="tmpl-section developer-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading developer-heading" style={headingStyle}>Skills</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
-              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content developer-skill-copy" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </section>
         );

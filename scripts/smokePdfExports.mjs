@@ -31,7 +31,7 @@ function smokeState(templateId) {
       jobTitle: 'Test Engineer',
       employer: 'Example Co',
       location: 'Bengaluru',
-      startDate: '2022',
+      startDate: '2022-11',
       endDate: 'Present',
       currentJob: true,
       description: '<ul><li>Validated production export behavior.</li><li>Preserved multi-template layout content.</li></ul>',
@@ -41,11 +41,15 @@ function smokeState(templateId) {
       degree: 'B.Sc.',
       fieldOfStudy: 'Computer Science',
       schoolName: 'Example University',
-      graduationDate: '2022',
+      graduationDate: '2021-07',
     }],
     skills: {
       textContent: '<ul><li>Testing</li><li>Communication</li><li>Automation</li></ul>',
-      ratings: [],
+      ratings: [
+        { id: 'skill-1', name: 'Testing', rating: 5 },
+        { id: 'skill-2', name: 'Communication', rating: 4 },
+        { id: 'skill-3', name: 'Automation', rating: 3 },
+      ],
       showRatings: false,
     },
     extraSections: {
@@ -129,10 +133,21 @@ for (const template of TEMPLATES) {
   }
 
   const { pageCount, text: normalizedText } = await inspectPdf(bytes);
-  for (const expectedText of ['deepak', 'test engineer', 'b.sc.', 'resume builder']) {
+  for (const expectedText of [
+    'deepak',
+    'test engineer',
+    'b.sc.',
+    'resume builder',
+    'november 2022',
+    'july 2021',
+    'testing',
+  ]) {
     if (!normalizedText.includes(expectedText)) {
       throw new Error(`PDF smoke test lost ${expectedText} in template ${template.id}.`);
     }
+  }
+  if (normalizedText.includes('2022-11') || normalizedText.includes('2021-07')) {
+    throw new Error(`PDF smoke test retained a raw YYYY-MM date in template ${template.id}.`);
   }
 
   console.log(`${template.id}: ${result.bytes} bytes, ${pageCount} page(s)`);

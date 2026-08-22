@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -42,7 +43,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
                 <div className="accountant-entry-meta">
                   {[job.employer, job.location].filter(Boolean).join(', ')}
                   {([job.employer, job.location].filter(Boolean).length > 0) && (job.startDate || job.endDate || job.currentJob) ? ' | ' : ''}
-                  {[job.startDate, job.currentJob ? 'Present' : job.endDate].filter(Boolean).join(' - ')}
+                  {formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}
                 </div>
                 <strong className="accountant-entry-title">{job.jobTitle}</strong>
                 {job.description && <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />}
@@ -60,7 +61,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
                 <div className="accountant-entry-meta">
                   {[edu.schoolName, edu.location].filter(Boolean).join(', ')}
                   {([edu.schoolName, edu.location].filter(Boolean).length > 0) && edu.graduationDate ? ' | ' : ''}
-                  {edu.graduationDate}
+                  {formatResumeMonth(edu.graduationDate)}
                 </div>
                 <strong className="accountant-entry-title">{[edu.degree || edu.level, edu.fieldOfStudy].filter(Boolean).join(' in ')}</strong>
               </div>
@@ -73,7 +74,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Skills</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
-              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content accountant-skill-copy" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </section>
         );

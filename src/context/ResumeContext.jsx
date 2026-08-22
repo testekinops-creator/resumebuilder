@@ -3,6 +3,7 @@ import { createNewResumeId, saveResumeById } from '../utils/storage';
 import { DEFAULT_RESUME_SECTION_ORDER, getOrderedSectionIds, getTemplateSectionLayout, RESUME_SECTION_LABELS } from '../utils/resumeSections';
 import { isCustomSectionId } from '../utils/optionalSections';
 import { sanitizeHTML } from '../utils/sanitize';
+import { DEFAULT_SHOW_SKILL_RATINGS, normalizeSkillRatingVisibility } from '../utils/skillRatings';
 
 const ResumeContext = createContext(null);
 
@@ -152,7 +153,7 @@ function createDefaultState() {
   workHistory: [],
   education: [],
   // Rating data remains available even when the resume displays plain skills.
-  skills: { textContent: '', ratings: [], showRatings: true },
+  skills: { textContent: '', ratings: [], showRatings: DEFAULT_SHOW_SKILL_RATINGS },
   summary: { content: '' },
   extraSections: { selected: [], custom: [] },
   personalDetails: {
@@ -215,7 +216,11 @@ function hydrateState(savedState) {
     education: Array.isArray(saved.education)
       ? saved.education.map(entry => ({ ...entry, coursework: safeRichText(entry?.coursework) }))
       : defaults.education,
-    skills: { ...defaults.skills, ...saved.skills, textContent: safeRichText(saved.skills?.textContent) },
+    skills: normalizeSkillRatingVisibility({
+      ...defaults.skills,
+      ...(saved.skills && typeof saved.skills === 'object' ? saved.skills : {}),
+      textContent: safeRichText(saved.skills?.textContent),
+    }),
     summary: { ...defaults.summary, ...saved.summary, content: safeRichText(saved.summary?.content) },
     extraSections: { ...defaults.extraSections, ...saved.extraSections },
     personalDetails: { ...defaults.personalDetails, ...saved.personalDetails },
@@ -338,11 +343,11 @@ function resumeReducer(state, action) {
     case 'SET_SKILLS':
       return saveHistory({
         ...state,
-        skills: {
+        skills: normalizeSkillRatingVisibility({
           ...state.skills,
           ...action.payload,
           ...(action.payload?.textContent === undefined ? {} : { textContent: safeRichText(action.payload.textContent) }),
-        },
+        }),
       });
 
     case 'SET_SUMMARY':
@@ -482,7 +487,10 @@ function resumeReducer(state, action) {
         },
         contact: { ...defaults.contact, ...imported.contact },
         summary: { ...defaults.summary, ...imported.summary },
-        skills: { ...defaults.skills, ...imported.skills },
+        // Uploaded files supply resume content, not a presentation preference.
+        // Keep imported rating data editable but require the user to opt in to
+        // displaying it on the resume.
+        skills: { ...defaults.skills, ...imported.skills, showRatings: DEFAULT_SHOW_SKILL_RATINGS },
         workHistory: Array.isArray(imported.workHistory) ? imported.workHistory : [],
         education: Array.isArray(imported.education) ? imported.education : [],
         extraSections: { ...defaults.extraSections, ...imported.extraSections },

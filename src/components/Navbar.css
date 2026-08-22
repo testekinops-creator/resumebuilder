@@ -48,7 +48,10 @@
   flex: 0 0 auto;
 }
 
-.navbar-cta-short { display: none; }
+.navbar-cta-short,
+.navbar-my-resumes-short {
+  display: none;
+}
 
 .theme-toggle {
   width: 44px;
@@ -80,6 +83,46 @@
   padding-inline: var(--space-5);
 }
 
+.navbar-my-resumes {
+  color: var(--color-navbar-text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: none;
+}
+
+.navbar-my-resumes:hover {
+  color: var(--color-navbar-text);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.navbar-my-resumes.is-active {
+  color: var(--color-navbar-text);
+  background: rgba(233, 30, 140, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(233, 30, 140, 0.18);
+}
+
+.navbar-my-resumes:focus-visible,
+.navbar-build-cta:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 720px) {
+  .navbar-my-resumes-long { display: none; }
+  .navbar-my-resumes-short { display: inline; }
+}
+
+@media (max-width: 520px) {
+  .navbar-my-resumes {
+    width: 44px;
+    padding-inline: 0;
+  }
+
+  .navbar-my-resumes-short { display: none; }
+}
+
 @media (max-width: 480px) {
   .navbar-container {
     padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
@@ -95,8 +138,11 @@
   .navbar-cta-short { display: inline; }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   .navbar-title { display: none; }
+}
+
+@media (max-width: 380px) {
   .navbar-container {
     padding-right: max(var(--space-3), env(safe-area-inset-right));
     padding-left: max(var(--space-3), env(safe-area-inset-left));

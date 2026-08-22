@@ -1,5 +1,24 @@
 const normaliseSkillName = (value = '') => String(value).replace(/\s+/g, ' ').trim();
 
+export const DEFAULT_SHOW_SKILL_RATINGS = false;
+
+/**
+ * Ratings are presentation opt-in. Missing, legacy, imported, and malformed
+ * values all resolve to names-only while an explicitly saved `true` remains
+ * enabled across navigation and hydration.
+ */
+export function shouldShowSkillRatings(skills) {
+  return skills?.showRatings === true;
+}
+
+export function normalizeSkillRatingVisibility(skills = {}) {
+  const value = skills && typeof skills === 'object' ? skills : {};
+  return {
+    ...value,
+    showRatings: shouldShowSkillRatings(value),
+  };
+}
+
 const skillKey = (value) => normaliseSkillName(value).toLocaleLowerCase();
 
 const stripHtml = (value = '') => normaliseSkillName(

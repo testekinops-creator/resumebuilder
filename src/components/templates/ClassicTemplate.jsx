@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
@@ -31,7 +32,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
               <div key={job.id} className="tmpl-item">
                 <div className="tmpl-item-header">
                   <strong>{job.jobTitle}</strong>
-                  <span>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
+                  <span>{formatResumeDateRange(job.startDate, job.endDate, job.currentJob)}</span>
                 </div>
                 <div className="tmpl-item-sub">
                   {[job.employer, job.location].filter(Boolean).join(', ')}
@@ -52,7 +53,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
                   <strong>{edu.degree || edu.level}</strong>
-                  <span>{edu.graduationDate}</span>
+                  <span>{formatResumeMonth(edu.graduationDate)}</span>
                 </div>
                 <div className="tmpl-item-sub">
                   {[edu.schoolName, edu.fieldOfStudy].filter(Boolean).join(', ')}
@@ -67,7 +68,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Skills</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
-              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </div>
         );

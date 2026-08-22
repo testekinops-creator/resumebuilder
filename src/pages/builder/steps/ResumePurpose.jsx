@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function ResumePurpose() {
   const [purpose, setPurpose] = useState('');
@@ -23,7 +24,7 @@ export default function ResumePurpose() {
           role="button" tabIndex={0}
           onKeyDown={e => e.key === 'Enter' && handleSelect('job')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--space-3)' }}>💼</div>
+          <div style={{ marginBottom: 'var(--space-3)' }}><ResumeIcon name="experience" size={32} /></div>
           <h3>I'm looking for a job</h3>
           <p>Create a resume optimized for job applications</p>
         </div>
@@ -34,7 +35,7 @@ export default function ResumePurpose() {
           role="button" tabIndex={0}
           onKeyDown={e => e.key === 'Enter' && handleSelect('other')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: 'var(--space-3)' }}>📋</div>
+          <div style={{ marginBottom: 'var(--space-3)' }}><ResumeIcon name="document" size={32} /></div>
           <h3>A different reason</h3>
           <p>Academic, freelance, portfolio, or other purposes</p>
         </div>

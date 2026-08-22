@@ -1,207 +1,202 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
 import Navbar from '../../components/Navbar';
+import ResumeIcon from '../../components/ResumeIcon';
+import { normalizeImportFailure, prepareResumeImport } from '../../utils/resumeFileImport';
 import './Onboarding.css';
+
+function resumeNameFromFile(file) {
+  return String(file?.name || 'Imported Resume')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 50) || 'Imported Resume';
+}
+
+function hasExistingResumeData(state) {
+  const hasText = value => String(value || '').replace(/<[^>]*>/g, '').trim().length > 0;
+  return Boolean(
+    Object.values(state.contact || {}).some(Boolean)
+    || hasText(state.summary?.content)
+    || hasText(state.skills?.textContent)
+    || state.workHistory?.length
+    || state.education?.length
+    || state.languages?.length
+    || state.websites?.length
+    || hasText(state.certifications?.content)
+    || state.extraSections?.custom?.length
+  );
+}
+
+function importReviewSummary(parsed) {
+  const summary = parsed.summary || {};
+  const parts = [
+    summary.contact ? 'contact details' : '',
+    summary.summary ? 'summary' : '',
+    summary.skills ? 'skills' : '',
+    summary.workHistory ? `${summary.workHistory} experience ${summary.workHistory === 1 ? 'entry' : 'entries'}` : '',
+    summary.education ? `${summary.education} education ${summary.education === 1 ? 'entry' : 'entries'}` : '',
+    summary.certifications ? 'certifications' : '',
+    summary.languages ? `${summary.languages} languages` : '',
+    summary.additionalSections ? `${summary.additionalSections} additional ${summary.additionalSections === 1 ? 'section' : 'sections'}` : '',
+  ].filter(Boolean);
+  return parts.join(', ');
+}
 
 export default function UploadOrScratch() {
   const navigate = useNavigate();
-  const { dispatch } = useResume();
+  const { state, dispatch } = useResume();
   const [uploading, setUploading] = useState(false);
+  const [progressLabel, setProgressLabel] = useState('Processing resume...');
   const [uploadError, setUploadError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
   const fileInputRef = useRef(null);
+  const processingRef = useRef(false);
 
-  const parseTextToResume = (text) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    const data = {};
-
-    // Extract email
-    const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
-    if (emailMatch) data.email = emailMatch[0];
-
-    // Extract phone
-    const phoneMatch = text.match(/[\+]?[\d\s\-()]{7,20}/);
-    if (phoneMatch) data.phone = phoneMatch[0].trim();
-
-    // Extract name (typically first non-empty line)
-    if (lines.length > 0) {
-      const nameLine = lines[0].trim();
-      if (nameLine.length < 60 && !nameLine.includes('@')) {
-        const parts = nameLine.split(/\s+/);
-        data.firstName = parts[0] || '';
-        data.surname = parts.slice(1).join(' ') || '';
-      }
-    }
-
-    // Extract sections by common headers
-    const sectionHeaders = {
-      experience: /^(experience|work\s*history|employment|professional\s*experience)/i,
-      education: /^(education|academic|qualification)/i,
-      skills: /^(skills|technical\s*skills|competencies|expertise)/i,
-      summary: /^(summary|profile|objective|about)/i,
-    };
-
-    let currentSection = null;
-    const sections = { experience: [], education: [], skills: [], summary: [] };
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      let matched = false;
-      for (const [key, regex] of Object.entries(sectionHeaders)) {
-        if (regex.test(trimmed)) {
-          currentSection = key;
-          matched = true;
-          break;
-        }
-      }
-      if (!matched && currentSection) {
-        sections[currentSection].push(trimmed);
-      }
-    }
-
-    // Apply extracted data
-    if (data.email || data.firstName) {
-      dispatch({ type: 'SET_CONTACT', payload: data });
-    }
-
-    if (sections.summary.length > 0) {
-      dispatch({ type: 'SET_SUMMARY', payload: { content: `<p>${sections.summary.join(' ')}</p>` } });
-    }
-
-    if (sections.skills.length > 0) {
-      const skillsHtml = '<ul>' + sections.skills.slice(0, 15).map(s => `<li>${s}</li>`).join('') + '</ul>';
-      dispatch({ type: 'SET_SKILLS', payload: { textContent: skillsHtml } });
-    }
+  const finishImport = (parsed, file) => {
+    const resumeName = resumeNameFromFile(file);
+    dispatch({ type: 'IMPORT_RESUME_DATA', payload: { ...parsed.patch, resumeName } });
+    navigate('/builder/contact', {
+      state: {
+        importReview: {
+          fileName: resumeName,
+          summary: importReviewSummary(parsed),
+          review: parsed.review,
+        },
+      },
+    });
   };
 
-  const handleFile = async (file) => {
+  const handleFiles = async (files) => {
+    const selectedFiles = Array.from(files || []);
     setUploadError('');
+    setDragActive(false);
 
-    if (!file) return;
-
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setUploadError('File is too large (max 10MB).');
+    if (processingRef.current || pendingImport) return;
+    if (selectedFiles.length !== 1) {
+      setUploadError(selectedFiles.length > 1
+        ? 'Please upload one resume at a time.'
+        : 'Choose a PDF, DOCX, or TXT resume to upload.');
       return;
     }
 
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['pdf', 'docx', 'doc', 'txt'].includes(ext)) {
-      setUploadError('Unsupported file type. Use PDF, DOCX, or TXT.');
-      return;
-    }
-
+    const [file] = selectedFiles;
+    processingRef.current = true;
     setUploading(true);
+    setProgressLabel('Validating your resume...');
 
     try {
-      if (ext === 'txt') {
-        const text = await file.text();
-        parseTextToResume(text);
-      } else if (ext === 'pdf') {
-        const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url
-        ).toString();
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText += content.items.map(item => item.str).join(' ') + '\n';
-        }
-        parseTextToResume(fullText);
-      } else if (ext === 'docx') {
-        const mammoth = await import('mammoth');
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        parseTextToResume(result.value);
-      } else {
-        setUploadError('DOC files are not supported. Please convert to DOCX.');
-        setUploading(false);
-        return;
-      }
+      const parsed = await prepareResumeImport(file, { onProgress: setProgressLabel });
 
-      navigate('/builder/contact');
-    } catch (err) {
-      console.error('File parsing error:', err);
-      setUploadError('Failed to parse file. Please try a different file or start from scratch.');
+      if (hasExistingResumeData(state)) {
+        setPendingImport({ parsed, file });
+      } else {
+        finishImport(parsed, file);
+      }
+    } catch (error) {
+      setUploadError(error?.code === 'EMPTY_RESUME'
+        ? 'We could not find editable resume details in that file. Try a text-based PDF/DOCX/TXT resume or start from scratch.'
+        : normalizeImportFailure(error));
     } finally {
+      processingRef.current = false;
       setUploading(false);
     }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragActive(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+  const handleDrop = (event) => {
+    event.preventDefault();
+    handleFiles(event.dataTransfer.files);
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragActive(true);
+  const handleDragEnter = (event) => {
+    event.preventDefault();
+    if (!uploading && !pendingImport && event.dataTransfer.types.includes('Files')) setDragActive(true);
   };
+
+  const handleDragLeave = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) setDragActive(false);
+  };
+
+  const isBusy = uploading || Boolean(pendingImport);
 
   return (
     <div className="onboarding-page">
       <Navbar />
       <main id="main-content" className="onboarding-container onboarding-centered">
-        <div className="onboarding-content" style={{ maxWidth: 700 }}>
+        <div className="onboarding-content upload-page-content">
           <h1>Do you have an existing resume?</h1>
           <p className="onboarding-subtitle">
             You can upload your current resume to get started faster, or build one from scratch.
           </p>
 
           <div className="upload-choice-grid">
-            <div className="upload-choice-card" onClick={() => navigate('/builder/contact')}>
-              <div className="badge badge-recommended" style={{ marginBottom: 'var(--space-4)' }}>Recommended</div>
-              <div className="upload-icon">📄</div>
+            <button type="button" className="upload-choice-card" onClick={() => navigate('/builder/contact')} disabled={isBusy}>
+              <div className="badge badge-recommended upload-recommended">Recommended</div>
+              <div className="upload-icon"><ResumeIcon name="document" size={36} /></div>
               <h3>Start from scratch</h3>
               <p>Build your resume step by step with our guided builder and expert suggestions.</p>
-            </div>
+            </button>
 
-            <div
+            <button
+              type="button"
               className={`upload-choice-card ${dragActive ? 'drag-active' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isBusy && fileInputRef.current?.click()}
               onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={() => setDragActive(false)}
+              onDragEnter={handleDragEnter}
+              onDragOver={event => event.preventDefault()}
+              onDragLeave={handleDragLeave}
+              disabled={isBusy}
+              aria-describedby="upload-format-help"
+              aria-busy={uploading}
             >
-              <div className="upload-icon">📤</div>
+              <div className="upload-icon"><ResumeIcon name="upload" size={36} /></div>
               <h3>Upload your resume</h3>
               <p>Drag & drop your PDF, DOCX, or TXT file here, or click to browse.</p>
-              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginTop: 'var(--space-2)' }}>
-                Max 10MB • Supported: PDF, DOCX, TXT
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.doc,.txt"
-                onChange={e => handleFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
-            </div>
+              <p id="upload-format-help" className="upload-helper-text">Max 10MB · Supported: PDF, DOCX, TXT</p>
+            </button>
           </div>
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            onChange={event => {
+              // FileList is live in some browsers. Copy it before clearing the
+              // input so choosing a file does not turn into an empty upload.
+              const files = Array.from(event.target.files || []);
+              event.target.value = '';
+              handleFiles(files);
+            }}
+            tabIndex={-1}
+            aria-hidden="true"
+            className="upload-file-input"
+          />
+
           {uploading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 'var(--space-4)', justifyContent: 'center' }}>
+            <div className="upload-status" role="status" aria-live="polite">
               <div className="spinner spinner-sm" />
-              <span style={{ color: 'var(--color-text-secondary)' }}>Parsing your resume...</span>
+              <span>{progressLabel}</span>
             </div>
           )}
 
           {uploadError && (
-            <div style={{
-              marginTop: 'var(--space-4)', padding: 'var(--space-3) var(--space-4)',
-              background: 'var(--color-error-light)', border: '1px solid var(--color-error)',
-              borderRadius: 'var(--radius-md)', color: 'var(--color-error)',
-              fontSize: 'var(--font-size-sm)', textAlign: 'center',
-            }}>
-              ⚠️ {uploadError}
+            <div className="upload-error" role="alert">
+              <ResumeIcon name="info" size={18} /> <span>{uploadError}</span>
             </div>
+          )}
+
+          {pendingImport && (
+            <section className="upload-replace-confirmation" role="dialog" aria-modal="true" aria-labelledby="replace-resume-title">
+              <h2 id="replace-resume-title">Replace the current resume?</h2>
+              <p>Importing <strong>{resumeNameFromFile(pendingImport.file)}</strong> will replace the current editable resume. Your existing resume remains available through Undo after import.</p>
+              <div className="upload-confirm-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setPendingImport(null)}>Keep current resume</button>
+                <button type="button" className="btn btn-primary" onClick={() => finishImport(pendingImport.parsed, pendingImport.file)}>Replace and review import</button>
+              </div>
+            </section>
           )}
         </div>
       </main>

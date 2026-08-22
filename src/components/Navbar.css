@@ -1,13 +1,14 @@
 .navbar {
   position: sticky;
   top: 0;
-  background: var(--color-secondary);
+  background: var(--color-navbar-bg);
   z-index: var(--z-sticky);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-navbar-border);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
 
 .navbar-container {
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: var(--space-3) var(--space-6);
   display: flex;
@@ -20,7 +21,7 @@
   align-items: center;
   gap: var(--space-3);
   text-decoration: none;
-  color: var(--color-text-inverse);
+  color: var(--color-navbar-text);
 }
 
 .navbar-brand:hover {
@@ -30,7 +31,7 @@
 .navbar-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-inverse);
+  color: var(--color-navbar-text);
 }
 
 .navbar-actions {
@@ -40,8 +41,8 @@
 }
 
 .theme-toggle {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -56,7 +57,17 @@
 
 .theme-toggle:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: rotate(15deg) scale(1.1);
+  transform: rotate(10deg) translateY(-1px);
+}
+
+.theme-toggle:focus-visible {
+  outline-color: var(--color-accent);
+  outline-offset: 3px;
+}
+
+.navbar-actions .btn {
+  min-height: 40px;
+  padding-inline: var(--space-5);
 }
 
 @media (max-width: 480px) {

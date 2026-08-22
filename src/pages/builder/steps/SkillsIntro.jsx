@@ -1,4 +1,5 @@
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function SkillsIntro() {
   return (
@@ -10,7 +11,7 @@ export default function SkillsIntro() {
       </p>
 
       <div className="callout callout-ai" style={{ marginTop: 'var(--space-6)' }}>
-        <span style={{ fontSize: '1.5rem' }}>✦</span>
+        <ResumeIcon name="sparkle" size={24} />
         <div>
           <strong>AI Writing Assistant:</strong> Search for your job title and we'll suggest the most
           in-demand skills for that role, backed by data from thousands of successful resumes.

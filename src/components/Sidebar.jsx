@@ -2,15 +2,16 @@ import { useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useResume } from '../context/ResumeContext';
 import { useTheme } from '../hooks/useTheme';
+import ResumeIcon from './ResumeIcon';
 import './Sidebar.css';
 
 const STEPS = [
-  { id: 'heading', label: 'Heading', introPath: '/builder/contact', summaryPath: '/builder/contact', paths: ['/builder/contact'] },
-  { id: 'work', label: 'Work history', introPath: '/builder/purpose', summaryPath: '/builder/work-summary', paths: ['/builder/purpose', '/builder/work-history', '/builder/work-editor', '/builder/work-summary'] },
-  { id: 'education', label: 'Education', introPath: '/builder/education-intro', summaryPath: '/builder/education-summary', paths: ['/builder/education-intro', '/builder/education-level', '/builder/education-form', '/builder/education-summary'] },
-  { id: 'skills', label: 'Skills', introPath: '/builder/skills-intro', summaryPath: '/builder/skills-editor', paths: ['/builder/skills-intro', '/builder/skills-editor'] },
-  { id: 'summary', label: 'Summary', introPath: '/builder/summary-intro', summaryPath: '/builder/summary-editor', paths: ['/builder/summary-intro', '/builder/summary-editor'] },
-  { id: 'finalize', label: 'Finalize', introPath: '/finalize', summaryPath: '/finalize', paths: ['/builder/extra-sections', '/builder/personal-details', '/builder/websites', '/builder/certifications', '/builder/languages', '/builder/smart-apply', '/finalize'] },
+  { id: 'heading', label: 'Heading', icon: 'person', introPath: '/builder/contact', summaryPath: '/builder/contact', paths: ['/builder/contact'] },
+  { id: 'work', label: 'Work history', icon: 'experience', introPath: '/builder/purpose', summaryPath: '/builder/work-summary', paths: ['/builder/purpose', '/builder/work-history', '/builder/work-editor', '/builder/work-summary'] },
+  { id: 'education', label: 'Education', icon: 'education', introPath: '/builder/education-intro', summaryPath: '/builder/education-summary', paths: ['/builder/education-intro', '/builder/education-level', '/builder/education-form', '/builder/education-summary'] },
+  { id: 'skills', label: 'Skills', icon: 'skills', introPath: '/builder/skills-intro', summaryPath: '/builder/skills-editor', paths: ['/builder/skills-intro', '/builder/skills-editor'] },
+  { id: 'summary', label: 'Summary', icon: 'summary', introPath: '/builder/summary-intro', summaryPath: '/builder/summary-editor', paths: ['/builder/summary-intro', '/builder/summary-editor'] },
+  { id: 'finalize', label: 'Finalize', icon: 'finish', introPath: '/finalize', summaryPath: '/finalize', paths: ['/builder/extra-sections', '/builder/personal-details', '/builder/websites', '/builder/certifications', '/builder/languages', '/builder/smart-apply', '/finalize'] },
 ];
 
 function checkHasData(stepIndex, state) {
@@ -82,7 +83,7 @@ export default function Sidebar() {
                   <div className="step-number">{index + 1}</div>
                 )}
               </div>
-              <span className="step-label">{step.label}</span>
+              <span className="step-label"><ResumeIcon name={step.icon} size={15} />{step.label}</span>
               {index < STEPS.length - 1 && <div className="step-connector" />}
             </div>
           );
@@ -111,7 +112,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <button className="sidebar-theme-toggle" onClick={toggle} title={isDark ? 'Light mode' : 'Dark mode'}>
-          {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          <ResumeIcon name={isDark ? 'sun' : 'moon'} size={17} />{isDark ? 'Light Mode' : 'Dark Mode'}
         </button>
         <a href="#terms">Terms &amp; Conditions</a>
         <a href="#privacy">Privacy Policy</a>

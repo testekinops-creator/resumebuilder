@@ -1,6 +1,8 @@
 import { useResume } from '../../../context/ResumeContext';
 import { EXTRA_SECTION_OPTIONS } from '../../../data/templates';
+import { getFirstOptionalSectionPath } from '../../../utils/optionalSections';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function ExtraSections() {
   const { state, dispatch } = useResume();
@@ -11,13 +13,6 @@ export default function ExtraSections() {
       ? selected.filter(s => s !== sectionId)
       : [...selected, sectionId];
     dispatch({ type: 'SET_EXTRA_SECTIONS', payload: { selected: newSelected } });
-  };
-
-  const getNextPath = () => {
-    if (selected.includes('personalDetails')) return '/builder/personal-details';
-    if (selected.includes('websites')) return '/builder/websites';
-    if (selected.includes('certifications')) return '/builder/certifications';
-    return '/builder/smart-apply';
   };
 
   return (
@@ -38,7 +33,7 @@ export default function ExtraSections() {
             <input type="checkbox" className="form-checkbox"
               checked={selected.includes(section.id)}
               onChange={() => toggleSection(section.id)} />
-            <span style={{ fontWeight: 500 }}>{section.label}</span>
+            <span style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}><ResumeIcon name={section.icon} size={17} />{section.label}</span>
             {section.isNew && <span className="badge badge-new">NEW</span>}
           </label>
         ))}
@@ -46,7 +41,7 @@ export default function ExtraSections() {
 
       <StepNavigation
         backPath="/builder/summary-editor"
-        nextPath={getNextPath()}
+        nextPath={getFirstOptionalSectionPath(selected)}
         nextLabel="Next"
       />
     </div>

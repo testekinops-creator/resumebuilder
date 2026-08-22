@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 
-const ALLOWED_TAGS = ['p', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'a', 'br', 'span', 'h1', 'h2', 'h3', 'h4', 's', 'del'];
-const ALLOWED_ATTR = ['href', 'target', 'rel', 'class'];
+const ALLOWED_TAGS = ['p', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'a', 'br', 'span', 'h1', 'h2', 'h3', 'h4', 's', 'del', 'img'];
+const ALLOWED_ATTR = ['href', 'target', 'rel', 'class', 'src', 'alt'];
 
 export function sanitizeHTML(html) {
   if (!html) return '';

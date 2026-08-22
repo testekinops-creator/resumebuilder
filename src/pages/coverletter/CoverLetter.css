@@ -1,6 +1,6 @@
 .cover-letter-page {
   min-height: 100vh;
-  background: var(--color-surface-secondary);
+  background: var(--page-bg);
 }
 
 .cl-container {
@@ -14,14 +14,15 @@
 .cl-sidebar {
   width: 260px;
   padding: var(--space-8) var(--space-6);
-  background: var(--color-secondary);
-  color: white;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   flex-shrink: 0;
 }
 
 .cl-sidebar h2 {
   font-size: var(--font-size-xl);
   margin-bottom: var(--space-8);
+  color: var(--sidebar-text);
 }
 
 .cl-steps {
@@ -36,27 +37,41 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border-radius: var(--radius-md);
+  width: 100%;
+  border: 0;
+  background: transparent;
   cursor: pointer;
+  font: inherit;
+  text-align: left;
   transition: all var(--transition-fast);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sidebar-text-muted);
 }
 
 .cl-step:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--sidebar-surface-hover);
+  color: var(--sidebar-text);
 }
 
 .cl-step.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--sidebar-surface-selected);
+  color: var(--sidebar-text);
 }
 
 .cl-step.done {
-  color: var(--color-success);
+  color: var(--sidebar-text-done);
+}
+
+.cl-step:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .cl-step-number {
   width: 28px;
   height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-full);
   border: 2px solid currentColor;
   display: flex;
@@ -68,15 +83,15 @@
 }
 
 .cl-step.active .cl-step-number {
-  background: white;
-  color: var(--color-secondary);
-  border-color: white;
+  background: var(--sidebar-text);
+  color: var(--sidebar-bg);
+  border-color: var(--sidebar-text);
 }
 
 .cl-step.done .cl-step-number {
   background: var(--color-success);
   border-color: var(--color-success);
-  color: white;
+  color: var(--text-on-accent);
 }
 
 /* Content */
@@ -84,17 +99,18 @@
   flex: 1;
   padding: var(--space-8);
   overflow-y: auto;
+  background: var(--page-bg);
 }
 
 .cl-form-section h3 {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   margin-bottom: var(--space-2);
 }
 
 .cl-form-desc {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   margin-bottom: var(--space-6);
 }
 
@@ -106,7 +122,7 @@
   display: block;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   margin-bottom: var(--space-2);
 }
 
@@ -118,19 +134,25 @@
 .cl-form-group .form-textarea {
   width: 100%;
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-md);
   font-size: var(--font-size-base);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: border-color var(--transition-fast);
 }
 
 .cl-form-group .form-input:focus,
 .cl-form-group .form-textarea:focus {
   outline: none;
-  border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.cl-form-group .form-input::placeholder,
+.cl-form-group .form-textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
 }
 
 .cl-form-group .form-textarea {
@@ -146,15 +168,19 @@
 }
 
 .cl-tone-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   flex: 1;
   padding: var(--space-3) var(--space-4);
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--surface);
   cursor: pointer;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -163,13 +189,15 @@
 }
 
 .cl-tone-btn:hover {
-  border-color: var(--color-primary);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .cl-tone-btn.active {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  border-color: var(--accent);
+  background: var(--surface-selected);
+  color: var(--text-primary);
 }
 
 /* Template options */
@@ -181,9 +209,9 @@
 .cl-template-btn {
   flex: 1;
   padding: var(--space-3);
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--surface);
   cursor: pointer;
   font-size: var(--font-size-sm);
   display: flex;
@@ -191,16 +219,33 @@
   gap: var(--space-2);
   justify-content: center;
   transition: all var(--transition-fast);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .cl-template-btn:hover {
-  border-color: var(--color-primary);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .cl-template-btn.active {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
+  border-color: var(--accent);
+  background: var(--surface-selected);
+  color: var(--text-primary);
+}
+
+.cl-tone-btn:focus-visible,
+.cl-template-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cl-tone-btn:disabled,
+.cl-template-btn:disabled {
+  background: var(--disabled-bg);
+  border-color: var(--disabled-bg);
+  color: var(--disabled-text);
+  cursor: not-allowed;
 }
 
 .cl-template-swatch {
@@ -251,7 +296,7 @@
   gap: var(--space-3);
   margin-top: var(--space-8);
   padding-top: var(--space-6);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--border);
 }
 
 /* Mobile */

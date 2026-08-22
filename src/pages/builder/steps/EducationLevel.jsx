@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EDUCATION_LEVELS } from '../../../data/templates';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function EducationLevel() {
   const [selected, setSelected] = useState('');
@@ -26,7 +27,7 @@ export default function EducationLevel() {
             role="button" tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && handleSelect(level.id)}
           >
-            <div style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>{level.icon}</div>
+            <div style={{ marginBottom: 'var(--space-2)' }}><ResumeIcon name={level.icon} size={32} /></div>
             <h3>{level.label}</h3>
           </div>
         ))}

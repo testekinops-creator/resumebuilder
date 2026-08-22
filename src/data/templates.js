@@ -7,6 +7,7 @@ export const TEMPLATES = [
     hasHeadshot: false,
     recommendedFor: ['3-5', '5-10', '10+'],
     defaultColor: '#6B21A8',
+    baseTemplate: 'classic',
   },
   {
     id: 'modern',
@@ -16,6 +17,7 @@ export const TEMPLATES = [
     hasHeadshot: false,
     recommendedFor: ['1-3', '3-5'],
     defaultColor: '#2563EB',
+    baseTemplate: 'modern',
   },
   {
     id: 'professional',
@@ -25,6 +27,7 @@ export const TEMPLATES = [
     hasHeadshot: false,
     recommendedFor: ['5-10', '10+'],
     defaultColor: '#0F172A',
+    baseTemplate: 'professional',
   },
   {
     id: 'creative',
@@ -34,6 +37,7 @@ export const TEMPLATES = [
     hasHeadshot: true,
     recommendedFor: ['none', '0-1'],
     defaultColor: '#059669',
+    baseTemplate: 'creative',
   },
   {
     id: 'minimal',
@@ -43,6 +47,7 @@ export const TEMPLATES = [
     hasHeadshot: false,
     recommendedFor: ['1-3', '3-5'],
     defaultColor: '#475569',
+    baseTemplate: 'minimal',
   },
   {
     id: 'executive',
@@ -52,7 +57,82 @@ export const TEMPLATES = [
     hasHeadshot: false,
     recommendedFor: ['10+'],
     defaultColor: '#1E3A5F',
+    baseTemplate: 'executive',
   },
+  {
+    id: 'accountant',
+    name: 'Accountant',
+    description: 'Minimal monochrome layout with a structured details column',
+    layout: '2-column',
+    hasHeadshot: false,
+    recommendedFor: ['3-5', '5-10', '10+'],
+    defaultColor: '#2D2D2F',
+    baseTemplate: 'accountant',
+  },
+  {
+    id: 'developer',
+    name: 'Developer',
+    description: 'Technical blue layout with a skills-led two-column structure',
+    layout: '2-column',
+    hasHeadshot: false,
+    recommendedFor: ['1-3', '3-5', '5-10'],
+    defaultColor: '#5872FF',
+    baseTemplate: 'developer',
+  },
+  {
+    id: 'timeline',
+    name: 'Timeline',
+    description: 'Two-column professional layout with a structured career timeline',
+    layout: '2-column',
+    hasHeadshot: false,
+    recommendedFor: ['3-5', '5-10', '10+'],
+    defaultColor: '#2E3A4D',
+    baseTemplate: 'timeline',
+  },
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Elegant centered layout with a refined blush accent',
+    layout: '1-column',
+    hasHeadshot: false,
+    recommendedFor: ['3-5', '5-10', '10+'],
+    defaultColor: '#C7A0A8',
+    baseTemplate: 'editorial',
+  },
+  {
+    id: 'ats-serif',
+    name: 'ATS Serif',
+    description: 'High-readability ATS layout with classic editorial type',
+    layout: '1-column',
+    hasHeadshot: false,
+    recommendedFor: ['1-3', '3-5', '5-10'],
+    defaultColor: '#202020',
+    baseTemplate: 'ats-serif',
+  },
+  { id: 'harbor', name: 'Harbor', description: 'Calm blue styling for operations and customer-facing roles', layout: '1-column', hasHeadshot: false, recommendedFor: ['1-3', '3-5'], defaultColor: '#0E7490', baseTemplate: 'classic' },
+  { id: 'sapphire', name: 'Sapphire', description: 'Refined navy design for corporate applications', layout: '1-column', hasHeadshot: false, recommendedFor: ['3-5', '5-10'], defaultColor: '#1D4ED8', baseTemplate: 'classic' },
+  { id: 'slate', name: 'Slate', description: 'Neutral and highly readable for general applications', layout: '1-column', hasHeadshot: false, recommendedFor: ['0-1', '1-3'], defaultColor: '#334155', baseTemplate: 'classic' },
+  { id: 'aspen', name: 'Aspen', description: 'Fresh green tone for education and sustainability roles', layout: '1-column', hasHeadshot: false, recommendedFor: ['none', '1-3'], defaultColor: '#15803D', baseTemplate: 'classic' },
+  { id: 'orbit', name: 'Orbit', description: 'Clean blue accents for technology and product roles', layout: '1-column', hasHeadshot: false, recommendedFor: ['1-3', '3-5'], defaultColor: '#4F46E5', baseTemplate: 'modern' },
+  { id: 'nova', name: 'Nova', description: 'Vivid purple modern layout for bold professionals', layout: '1-column', hasHeadshot: false, recommendedFor: ['0-1', '1-3'], defaultColor: '#7C3AED', baseTemplate: 'modern' },
+  { id: 'metro', name: 'Metro', description: 'Urban charcoal layout with a sharp modern header', layout: '1-column', hasHeadshot: false, recommendedFor: ['3-5', '5-10'], defaultColor: '#0F766E', baseTemplate: 'modern' },
+  { id: 'azure', name: 'Azure', description: 'Bright and polished style for customer success roles', layout: '1-column', hasHeadshot: false, recommendedFor: ['1-3', '3-5'], defaultColor: '#0284C7', baseTemplate: 'modern' },
+  { id: 'ledger', name: 'Ledger', description: 'Structured format for finance, law, and consulting', layout: '1-column', hasHeadshot: false, recommendedFor: ['5-10', '10+'], defaultColor: '#854D0E', baseTemplate: 'professional' },
+  { id: 'ivory', name: 'Ivory', description: 'Understated professional design with warm accents', layout: '1-column', hasHeadshot: false, recommendedFor: ['3-5', '5-10'], defaultColor: '#9A3412', baseTemplate: 'professional' },
+  { id: 'cobalt', name: 'Cobalt', description: 'Confident corporate style for formal applications', layout: '1-column', hasHeadshot: false, recommendedFor: ['5-10', '10+'], defaultColor: '#1E40AF', baseTemplate: 'professional' },
+  { id: 'sterling', name: 'Sterling', description: 'Elegant grey-blue design for senior specialists', layout: '1-column', hasHeadshot: false, recommendedFor: ['3-5', '5-10'], defaultColor: '#475569', baseTemplate: 'professional' },
+  { id: 'canvas', name: 'Canvas', description: 'Portfolio-forward two-column design for creatives', layout: '2-column', hasHeadshot: true, recommendedFor: ['0-1', '1-3'], defaultColor: '#C2410C', baseTemplate: 'creative' },
+  { id: 'coral', name: 'Coral', description: 'Warm expressive layout for design and marketing', layout: '2-column', hasHeadshot: true, recommendedFor: ['none', '0-1'], defaultColor: '#E11D48', baseTemplate: 'creative' },
+  { id: 'prism', name: 'Prism', description: 'Vibrant two-column style for visual storytellers', layout: '2-column', hasHeadshot: true, recommendedFor: ['1-3', '3-5'], defaultColor: '#9333EA', baseTemplate: 'creative' },
+  { id: 'muse', name: 'Muse', description: 'Deep teal creative format for portfolio careers', layout: '2-column', hasHeadshot: true, recommendedFor: ['1-3', '3-5'], defaultColor: '#0F766E', baseTemplate: 'creative' },
+  { id: 'mono', name: 'Mono', description: 'Minimal monochrome layout for focused content', layout: '1-column', hasHeadshot: false, recommendedFor: ['0-1', '1-3'], defaultColor: '#18181B', baseTemplate: 'minimal' },
+  { id: 'nordic', name: 'Nordic', description: 'Airy blue-grey minimal format for modern teams', layout: '1-column', hasHeadshot: false, recommendedFor: ['1-3', '3-5'], defaultColor: '#0369A1', baseTemplate: 'minimal' },
+  { id: 'pebble', name: 'Pebble', description: 'Soft earthy styling that keeps the content central', layout: '1-column', hasHeadshot: false, recommendedFor: ['none', '0-1'], defaultColor: '#78716C', baseTemplate: 'minimal' },
+  { id: 'willow', name: 'Willow', description: 'Natural green minimal style for thoughtful professionals', layout: '1-column', hasHeadshot: false, recommendedFor: ['1-3', '3-5'], defaultColor: '#4D7C0F', baseTemplate: 'minimal' },
+  { id: 'summit', name: 'Summit', description: 'Authoritative executive layout for leadership roles', layout: '1-column', hasHeadshot: false, recommendedFor: ['10+'], defaultColor: '#1E3A8A', baseTemplate: 'executive' },
+  { id: 'regal', name: 'Regal', description: 'Premium deep-purple format for senior leaders', layout: '1-column', hasHeadshot: false, recommendedFor: ['10+'], defaultColor: '#581C87', baseTemplate: 'executive' },
+  { id: 'onyx', name: 'Onyx', description: 'High-contrast executive layout for decisive impact', layout: '1-column', hasHeadshot: false, recommendedFor: ['5-10', '10+'], defaultColor: '#27272A', baseTemplate: 'executive' },
+  { id: 'bordeaux', name: 'Bordeaux', description: 'Distinguished wine-red style for senior applications', layout: '1-column', hasHeadshot: false, recommendedFor: ['10+'], defaultColor: '#881337', baseTemplate: 'executive' },
 ];
 
 export const COLOR_SCHEMES = [
@@ -70,7 +150,18 @@ export const COLOR_SCHEMES = [
 ];
 
 export const FONT_FAMILIES = [
-  'Inter', 'Arial', 'Georgia', 'Times New Roman', 'Helvetica',
+  'Inter',
+  'Arial',
+  'Helvetica',
+  'Calibri',
+  'Verdana',
+  'Trebuchet MS',
+  'Georgia',
+  'Garamond',
+  'Palatino Linotype',
+  'Times New Roman',
+  'Cambria',
+  'Courier New',
 ];
 
 export const EXPERIENCE_LEVELS = [
@@ -83,12 +174,12 @@ export const EXPERIENCE_LEVELS = [
 ];
 
 export const EDUCATION_LEVELS = [
-  { id: 'vocational', label: 'Vocational', icon: '🎓' },
-  { id: 'apprenticeship', label: 'Apprenticeship', icon: '🔧' },
-  { id: 'associates', label: 'Associates', icon: '📚' },
-  { id: 'bachelors', label: 'Bachelors', icon: '🎓' },
-  { id: 'masters', label: 'Masters', icon: '📖' },
-  { id: 'doctorate', label: 'Doctorate', icon: '🏛️' },
+  { id: 'vocational', label: 'Vocational', icon: 'certificate' },
+  { id: 'apprenticeship', label: 'Apprenticeship', icon: 'experience' },
+  { id: 'associates', label: 'Associates', icon: 'education' },
+  { id: 'bachelors', label: 'Bachelors', icon: 'education' },
+  { id: 'masters', label: 'Masters', icon: 'summary' },
+  { id: 'doctorate', label: 'Doctorate', icon: 'award' },
 ];
 
 export const DEGREE_OPTIONS = [
@@ -100,11 +191,16 @@ export const DEGREE_OPTIONS = [
 ];
 
 export const EXTRA_SECTION_OPTIONS = [
-  { id: 'personalDetails', label: 'Personal Details' },
-  { id: 'websites', label: 'Websites, Portfolios, Profiles' },
-  { id: 'certifications', label: 'Certifications' },
-  { id: 'languages', label: 'Languages', isNew: true },
-  { id: 'accomplishments', label: 'Accomplishments' },
-  { id: 'additionalInfo', label: 'Additional Information' },
-  { id: 'affiliations', label: 'Affiliations' },
+  { id: 'personalDetails', label: 'Personal Details', icon: 'person' },
+  { id: 'websites', label: 'Websites, Portfolios, Profiles', icon: 'website' },
+  { id: 'certifications', label: 'Certifications', icon: 'certificate' },
+  { id: 'languages', label: 'Languages', icon: 'language', isNew: true },
+  { id: 'projects', label: 'Projects', icon: 'project' },
+  { id: 'achievements', label: 'Achievements', icon: 'award' },
+  { id: 'awards', label: 'Awards', icon: 'award' },
+  { id: 'publications', label: 'Publications', icon: 'summary' },
+  { id: 'customSections', label: 'Custom Sections', icon: 'custom' },
+  { id: 'accomplishments', label: 'Accomplishments', icon: 'finish' },
+  { id: 'additionalInfo', label: 'Additional Information', icon: 'info' },
+  { id: 'affiliations', label: 'Affiliations', icon: 'person' },
 ];

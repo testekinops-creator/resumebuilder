@@ -1,5 +1,6 @@
 import { useResume } from '../../../context/ResumeContext';
 import StepNavigation from '../../../components/StepNavigation';
+import { getOptionalSectionPath } from '../../../utils/optionalSections';
 
 export default function PersonalDetails() {
   const { state, dispatch } = useResume();
@@ -9,12 +10,7 @@ export default function PersonalDetails() {
     dispatch({ type: 'SET_PERSONAL_DETAILS', payload: { [field]: value } });
   };
 
-  const getNextPath = () => {
-    const selected = state.extraSections.selected || [];
-    if (selected.includes('websites')) return '/builder/websites';
-    if (selected.includes('certifications')) return '/builder/certifications';
-    return '/builder/smart-apply';
-  };
+  const selected = state.extraSections.selected || [];
 
   return (
     <div className="step-page">
@@ -71,8 +67,8 @@ export default function PersonalDetails() {
       </div>
 
       <StepNavigation
-        backPath="/builder/extra-sections"
-        nextPath={getNextPath()}
+        backPath={getOptionalSectionPath(selected, 'personalDetails', 'back')}
+        nextPath={getOptionalSectionPath(selected, 'personalDetails')}
         nextLabel="Next"
       />
     </div>

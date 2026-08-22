@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listResumes, deleteResumeById, duplicateResume, loadResumeById, exportResumeJSON, createNewResumeId } from '../../utils/storage';
+import { listResumes, deleteResumeById, duplicateResume, loadResumeById, exportResumeJSON } from '../../utils/storage';
+import { useResume } from '../../context/ResumeContext';
 import { useTheme } from '../../hooks/useTheme';
+import { TEMPLATES } from '../../data/templates';
+import ResumeIcon from '../../components/ResumeIcon';
 import './Dashboard.css';
 
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const navigate = useNavigate();
+  const { dispatch } = useResume();
   const { isDark, toggle } = useTheme();
 
   useEffect(() => {
@@ -32,7 +35,15 @@ export default function Dashboard() {
   };
 
   const handleNewResume = () => {
+    dispatch({ type: 'RESET' });
     navigate('/get-started');
+  };
+
+  const handleEdit = (id) => {
+    const data = loadResumeById(id);
+    if (!data) return;
+    dispatch({ type: 'LOAD_STATE', payload: data });
+    navigate('/builder/contact');
   };
 
   const formatDate = (iso) => {
@@ -41,14 +52,9 @@ export default function Dashboard() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const templateColors = {
-    classic: '#6B21A8',
-    modern: '#3B82F6',
-    professional: '#059669',
-    creative: '#DC2626',
-    minimal: '#6B7280',
-    executive: '#1E293B',
-  };
+  const getTemplateColor = (templateId) => (
+    TEMPLATES.find(template => template.id === templateId)?.defaultColor || '#6B21A8'
+  );
 
   return (
     <div className="dashboard">
@@ -69,10 +75,10 @@ export default function Dashboard() {
         </Link>
         <div className="dash-header-actions">
           <button className="btn-icon theme-toggle" onClick={toggle} title={isDark ? 'Light Mode' : 'Dark Mode'}>
-            {isDark ? '☀️' : '🌙'}
+            <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
           </button>
           <button className="btn btn-accent btn-sm" onClick={handleNewResume}>
-            + New Resume
+            <ResumeIcon name="add" size={16} />New Resume
           </button>
         </div>
       </header>
@@ -86,18 +92,18 @@ export default function Dashboard() {
 
         {resumes.length === 0 ? (
           <div className="dash-empty">
-            <div className="dash-empty-icon">📄</div>
+            <div className="dash-empty-icon"><ResumeIcon name="document" size={40} /></div>
             <h2>No resumes yet</h2>
             <p>Create your first professional resume in minutes.</p>
             <button className="btn btn-primary" onClick={handleNewResume}>
-              + Create My First Resume
+              <ResumeIcon name="add" size={18} />Create My First Resume
             </button>
           </div>
         ) : (
           <div className="dash-grid">
             {/* New Resume Card */}
             <div className="dash-card dash-card-new" onClick={handleNewResume}>
-              <div className="dash-card-new-icon">+</div>
+              <div className="dash-card-new-icon"><ResumeIcon name="add" size={28} /></div>
               <span>New Resume</span>
             </div>
 
@@ -105,10 +111,10 @@ export default function Dashboard() {
             {resumes.map(resume => (
               <div key={resume.id} className="dash-card">
                 <div className="dash-card-preview" style={{
-                  background: `linear-gradient(135deg, ${templateColors[resume.templateId] || '#6B21A8'}22, ${templateColors[resume.templateId] || '#6B21A8'}44)`,
-                  borderTop: `4px solid ${templateColors[resume.templateId] || '#6B21A8'}`,
+                  background: `linear-gradient(135deg, ${getTemplateColor(resume.templateId)}22, ${getTemplateColor(resume.templateId)}44)`,
+                  borderTop: `4px solid ${getTemplateColor(resume.templateId)}`,
                 }}>
-                  <div className="dash-card-mini-header" style={{ background: templateColors[resume.templateId] || '#6B21A8' }} />
+                  <div className="dash-card-mini-header" style={{ background: getTemplateColor(resume.templateId) }} />
                   <div className="dash-card-mini-lines">
                     <div className="dash-mini-line" style={{ width: '70%' }} />
                     <div className="dash-mini-line" style={{ width: '50%' }} />
@@ -129,18 +135,18 @@ export default function Dashboard() {
                 </div>
 
                 <div className="dash-card-actions">
-                  <Link to={`/builder/contact`} className="btn btn-sm btn-primary" style={{ flex: 1 }}>
-                    ✏️ Edit
-                  </Link>
-                  <button className="btn-icon" onClick={() => handleDuplicate(resume.id)} title="Duplicate">
-                    📋
+                  <button className="btn btn-sm btn-primary" onClick={() => handleEdit(resume.id)} style={{ flex: 1 }}>
+                    <ResumeIcon name="edit" size={17} />Edit
                   </button>
-                  <button className="btn-icon" onClick={() => handleExport(resume.id)} title="Export JSON">
-                    📥
+                  <button className="btn-icon" onClick={() => handleDuplicate(resume.id)} title="Duplicate" aria-label="Duplicate resume">
+                    <ResumeIcon name="template" size={18} />
+                  </button>
+                  <button className="btn-icon" onClick={() => handleExport(resume.id)} title="Export JSON" aria-label="Export JSON">
+                    <ResumeIcon name="download" size={18} />
                   </button>
                   <button className="btn-icon" onClick={() => setConfirmDelete(resume.id)} title="Delete"
                     style={{ color: 'var(--color-error)' }}>
-                    🗑️
+                    <ResumeIcon name="delete" size={18} />
                   </button>
                 </div>
 

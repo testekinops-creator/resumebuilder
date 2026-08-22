@@ -1,4 +1,5 @@
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function EducationIntro() {
   return (
@@ -10,7 +11,7 @@ export default function EducationIntro() {
       </p>
 
       <div className="callout callout-tip" style={{ marginTop: 'var(--space-6)' }}>
-        <span style={{ fontSize: '1.5rem' }}>💡</span>
+        <ResumeIcon name="info" size={24} />
         <div>
           <strong>Pro Tip:</strong> Include your GPA if it's 3.5 or above. For experienced professionals,
           education is less important than work history — keep it concise.

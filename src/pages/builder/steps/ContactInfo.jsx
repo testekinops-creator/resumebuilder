@@ -1,10 +1,26 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import { isValidEmail, isValidPhone } from '../../../utils/sanitize';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function ContactInfo() {
   const { state, dispatch } = useResume();
+  const location = useLocation();
+  const importReview = location.state?.importReview;
+  const reviewSummary = importReview?.review?.summary;
+  const reviewItems = importReview?.review?.needsReview || [];
+  const reviewCounts = reviewSummary ? [
+    ['Contact', reviewSummary.contact],
+    ['Summary', reviewSummary.summary],
+    ['Work experience', reviewSummary.workHistory],
+    ['Education', reviewSummary.education],
+    ['Skills', reviewSummary.skills],
+    ['Certifications', reviewSummary.certifications],
+    ['Languages', reviewSummary.languages],
+    ['Additional sections', reviewSummary.additionalSections],
+  ].filter(([, count]) => Number(count) > 0) : [];
   const [errors, setErrors] = useState({});
   const contact = state.contact;
   const [showLinks, setShowLinks] = useState({
@@ -34,6 +50,23 @@ export default function ContactInfo() {
 
   return (
     <div className="step-page">
+      {importReview && (
+        <section className="import-review-banner" role="status" aria-live="polite">
+          <ResumeIcon name="finish" size={20} />
+          <div>
+            <strong>{reviewItems.length ? `Imported — ${reviewItems.length} item${reviewItems.length === 1 ? '' : 's'} need review.` : 'Resume imported successfully.'}</strong>
+            <p>We found {importReview.summary || 'editable resume details'} in {importReview.fileName}. Review and correct each builder step before downloading.</p>
+            {reviewCounts.length > 0 && (
+              <ul className="import-review-counts" aria-label="Imported resume sections">
+                {reviewCounts.map(([label, count]) => <li key={label}><span>{label}</span><strong>{count}</strong></li>)}
+              </ul>
+            )}
+            {reviewItems.length > 0 && (
+              <p className="import-review-attention">Check the highlighted builder steps, especially any dates or entries marked for review.</p>
+            )}
+          </div>
+        </section>
+      )}
       <h1>What's the best way for employers to contact you?</h1>
       <p className="step-subtitle">We suggest including an email and phone number.</p>
 
@@ -78,7 +111,7 @@ export default function ContactInfo() {
               <input id="phone" className={`form-input ${errors.phone ? 'error' : contact.phone ? 'success' : ''}`}
                 type="tel" placeholder="e.g. +91 9876543210"
                 value={contact.phone} onChange={e => handleChange('phone', e.target.value)} maxLength={20} />
-              {contact.phone && !errors.phone && <span className="validation-icon valid">✓</span>}
+              {contact.phone && !errors.phone && <span className="validation-icon valid"><ResumeIcon name="finish" size={15} /></span>}
             </div>
             {errors.phone && <span className="form-error">{errors.phone}</span>}
           </div>
@@ -88,7 +121,7 @@ export default function ContactInfo() {
               <input id="email" className={`form-input ${errors.email ? 'error' : contact.email && isValidEmail(contact.email) ? 'success' : ''}`}
                 type="email" placeholder="e.g. john@example.com"
                 value={contact.email} onChange={e => handleChange('email', e.target.value)} maxLength={254} />
-              {contact.email && isValidEmail(contact.email) && <span className="validation-icon valid">✓</span>}
+              {contact.email && isValidEmail(contact.email) && <span className="validation-icon valid"><ResumeIcon name="finish" size={15} /></span>}
             </div>
             {errors.email && <span className="form-error">{errors.email}</span>}
           </div>
@@ -98,17 +131,17 @@ export default function ContactInfo() {
         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', marginTop: 'var(--space-2)' }}>
           {!showLinks.linkedIn && (
             <button className="tag" onClick={() => setShowLinks(p => ({ ...p, linkedIn: true }))}>
-              🔗 LinkedIn +
+              <ResumeIcon name="link" size={16} />LinkedIn <ResumeIcon name="add" size={14} />
             </button>
           )}
           {!showLinks.website && (
             <button className="tag" onClick={() => setShowLinks(p => ({ ...p, website: true }))}>
-              🌐 Website +
+              <ResumeIcon name="website" size={16} />Website <ResumeIcon name="add" size={14} />
             </button>
           )}
           {!showLinks.drivingLicence && (
             <button className="tag" onClick={() => setShowLinks(p => ({ ...p, drivingLicence: true }))}>
-              🚗 Driving Licence +
+              <ResumeIcon name="document" size={16} />Driving Licence <ResumeIcon name="add" size={14} />
             </button>
           )}
         </div>
@@ -117,7 +150,7 @@ export default function ContactInfo() {
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <label className="form-label" htmlFor="linkedIn">LinkedIn</label>
-              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, linkedIn: false })); handleChange('linkedIn', ''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>✕</button>
+              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, linkedIn: false })); handleChange('linkedIn', ''); }} aria-label="Remove LinkedIn" title="Remove LinkedIn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}><ResumeIcon name="close" size={18} /></button>
             </div>
             <input id="linkedIn" className="form-input" type="url" placeholder="https://linkedin.com/in/yourname"
               value={contact.linkedIn} onChange={e => handleChange('linkedIn', e.target.value)} />
@@ -127,7 +160,7 @@ export default function ContactInfo() {
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <label className="form-label" htmlFor="website">Website</label>
-              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, website: false })); handleChange('website', ''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>✕</button>
+              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, website: false })); handleChange('website', ''); }} aria-label="Remove website" title="Remove website" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}><ResumeIcon name="close" size={18} /></button>
             </div>
             <input id="website" className="form-input" type="url" placeholder="https://yourwebsite.com"
               value={contact.website} onChange={e => handleChange('website', e.target.value)} />
@@ -137,7 +170,7 @@ export default function ContactInfo() {
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <label className="form-label" htmlFor="drivingLicence">Driving Licence</label>
-              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, drivingLicence: false })); handleChange('drivingLicence', ''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}>✕</button>
+              <button className="fe-close-btn" onClick={() => { setShowLinks(p => ({ ...p, drivingLicence: false })); handleChange('drivingLicence', ''); }} aria-label="Remove driving licence" title="Remove driving licence" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}><ResumeIcon name="close" size={18} /></button>
             </div>
             <input id="drivingLicence" className="form-input" type="text" placeholder="e.g. Full UK Licence"
               value={contact.drivingLicence} onChange={e => handleChange('drivingLicence', e.target.value)} />

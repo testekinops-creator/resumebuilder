@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
+import ResumeIcon from './ResumeIcon';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -29,8 +30,9 @@ export default function Navbar() {
             onClick={toggle}
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle dark mode"
+            aria-pressed={isDark}
           >
-            {isDark ? '☀️' : '🌙'}
+            <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
           </button>
           <Link to="/get-started" className="btn btn-accent btn-sm">
             Build My Resume

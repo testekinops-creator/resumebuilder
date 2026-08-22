@@ -39,6 +39,21 @@ export const workBulletPoints = {
       'Collaborated with cross-functional teams to define and implement new features.',
     ],
   },
+  'test engineer': {
+    title: 'Test Engineer',
+    expert: [
+      'Designed and executed functional, regression, and integration test cases to validate releases against business requirements.',
+      'Reported, prioritized, and verified defects in collaboration with developers, product owners, and cross-functional teams.',
+      'Built and maintained automated test coverage for critical user journeys, APIs, and regression scenarios.',
+      'Analyzed requirements and acceptance criteria to identify test risks, edge cases, and quality gaps before release.',
+    ],
+    regular: [
+      'Performed manual test execution across web applications and documented clear, reproducible test results.',
+      'Participated in Agile ceremonies and provided timely quality updates, release-readiness feedback, and test estimates.',
+      'Validated REST API responses, data flows, and error handling using appropriate testing tools.',
+      'Maintained test cases, test data, and traceability records to support reliable regression testing.',
+    ],
+  },
   cashier: {
     title: 'Cashier',
     expert: [
@@ -163,17 +178,158 @@ export function searchSuggestions(category, query) {
 
   if (!data) return null;
 
+  if (category === 'work' && /\b(qa|sdet|test|testing)\b|quality\s+assurance/.test(q)) {
+    return workBulletPoints['test engineer'];
+  }
+
   const match = Object.keys(data).find(key =>
     key.includes(q) || q.includes(key)
   );
 
-  return data[match] || data.default || null;
+  return data[match] || createRoleSuggestions(category, query);
+}
+
+function formatRole(query) {
+  return query
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+    .slice(0, 80);
+}
+
+function createRoleSuggestions(category, query) {
+  const role = formatRole(query) || 'Professional';
+  const roleLower = role.toLowerCase();
+
+  switch (category) {
+    case 'work':
+      return {
+        title: role,
+        expert: [
+          `Delivered reliable ${roleLower} work while meeting quality standards and agreed deadlines.`,
+          `Collaborated with teammates and stakeholders to improve ${roleLower} processes and outcomes.`,
+          `Used data, feedback, and sound judgement to identify and resolve day-to-day challenges.`,
+          `Maintained clear documentation and communicated progress, priorities, and risks proactively.`,
+        ],
+        regular: [
+          `Supported daily ${roleLower} responsibilities in a fast-paced environment.`,
+          'Organized competing priorities and followed established procedures accurately.',
+          'Built positive working relationships with customers, colleagues, and partners.',
+          'Learned new tools and processes quickly to contribute to team goals.',
+        ],
+      };
+    case 'skills':
+      return {
+        expert: [`${role} Fundamentals`, 'Problem-solving', 'Stakeholder Communication', 'Process Improvement'],
+        regular: ['Team Collaboration', 'Time Management', 'Attention to Detail', 'Adaptability', 'Documentation', 'Customer Focus'],
+      };
+    case 'summary':
+      return [
+        `Dedicated ${roleLower} with a strong record of delivering accurate, high-quality work. Brings clear communication, problem-solving, and a commitment to continuous improvement.`,
+        `Results-focused ${roleLower} who collaborates effectively with teams and stakeholders to meet priorities and improve outcomes. Known for reliability, initiative, and attention to detail.`,
+        `Adaptable ${roleLower} with a customer-focused mindset and the ability to learn new tools and processes quickly. Ready to contribute practical skills and dependable execution.`,
+      ];
+    case 'certifications':
+      return [
+        `${role} Training — [Provider]`,
+        `${role} Fundamentals Certificate — [Provider]`,
+        'First Aid / CPR Certification',
+        'Professional Development Course — [Provider]',
+      ];
+    default:
+      return null;
+  }
 }
 
 export const relatedJobTitles = {
   manager: ['Assistant Manager', 'Project Manager', 'Sales Manager', 'Store Manager', 'Operations Manager'],
   'software engineer': ['Frontend Developer', 'Backend Developer', 'Full Stack Developer', 'DevOps Engineer', 'QA Engineer'],
+  'test engineer': ['QA Engineer', 'QA Automation Engineer', 'Software Test Engineer', 'Test Automation Engineer', 'SDET', 'Quality Assurance Engineer', 'Manual Test Engineer', 'Software QA Engineer'],
   cashier: ['Sales Associate', 'Retail Clerk', 'Customer Service Associate', 'Store Attendant'],
   teacher: ['Professor', 'Tutor', 'Teaching Assistant', 'Curriculum Developer', 'Education Coordinator'],
   default: ['Cashier', 'Customer Service Representative', 'Manager', 'Server', 'Retail'],
 };
+
+const testingJobTitles = [
+  'QA Engineer',
+  'QA Automation Engineer',
+  'Automation QA Engineer',
+  'Quality Assurance Engineer',
+  'Software QA Engineer',
+  'Manual QA Engineer',
+  'Manual Test Engineer',
+  'Software Test Engineer',
+  'Test Automation Engineer',
+  'Test Engineer',
+  'SDET',
+];
+
+const jobTitleCatalog = [...new Set([
+  ...popularJobTitles,
+  ...Object.values(relatedJobTitles).flat(),
+  ...testingJobTitles,
+  ...Object.values(workBulletPoints).map(({ title }) => title),
+])];
+
+const qualityTitleQuery = /^(q|qa|quality|test|testing|sdet|automation)/;
+
+function getTitleMatchScore(title, query) {
+  const normalizedTitle = title.toLowerCase();
+  if (normalizedTitle === query) return 0;
+  if (normalizedTitle.startsWith(query)) return 1;
+  if (normalizedTitle.includes(query)) return 2;
+  return 3;
+}
+
+/**
+ * Returns suggestions only for the job title currently being typed. An empty
+ * query deliberately returns no items, so the editor does not reserve space
+ * for permanent related-title chips.
+ */
+export function getJobTitleSuggestions(query = '', limit = 8) {
+  const normalized = query.toLowerCase().trim();
+  if (!normalized) return [];
+
+  const queryWords = normalized.split(/\s+/).filter(Boolean);
+  const isQualitySearch = qualityTitleQuery.test(normalized);
+  const isAutomationSearch = queryWords.some(word => word.startsWith('auto'));
+  const isManualSearch = queryWords.some(word => word.startsWith('manual'));
+
+  const matchingTitles = jobTitleCatalog.filter((title) => {
+    const normalizedTitle = title.toLowerCase();
+
+    if (isQualitySearch) {
+      if (isAutomationSearch) return normalizedTitle.includes('automation');
+      if (isManualSearch) return normalizedTitle.includes('manual');
+      return /\b(qa|quality|test|sdet)\b/.test(normalizedTitle);
+    }
+
+    return normalizedTitle.includes(normalized)
+      || queryWords.every(word => normalizedTitle.includes(word));
+  });
+
+  return matchingTitles
+    .sort((first, second) => getTitleMatchScore(first, normalized) - getTitleMatchScore(second, normalized)
+      || first.localeCompare(second))
+    .slice(0, limit);
+}
+
+export function getRelatedJobTitles(query = '') {
+  const normalized = query.toLowerCase().trim();
+  if (/\b(qa|sdet|test|testing)\b|quality\s+assurance/.test(normalized)) {
+    return relatedJobTitles['test engineer'];
+  }
+  if (relatedJobTitles[normalized]) return relatedJobTitles[normalized];
+  if (!normalized) return relatedJobTitles.default;
+
+  const role = formatRole(query);
+  return [
+    `Senior ${role}`,
+    `${role} Specialist`,
+    `${role} Associate`,
+    `${role} Coordinator`,
+    `Lead ${role}`,
+  ];
+}

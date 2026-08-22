@@ -82,6 +82,7 @@
 }
 
 .dash-empty-icon {
+  display: inline-flex;
   font-size: 4rem;
   margin-bottom: var(--space-4);
   opacity: 0.6;
@@ -146,6 +147,9 @@
 .dash-card-new-icon {
   width: 56px;
   height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-full);
   background: var(--color-surface-tertiary);
   display: flex;

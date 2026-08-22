@@ -1,26 +1,33 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import CustomSections from './CustomSections';
+import HeaderLinks from './HeaderLinks';
+import SkillRatings from './SkillRatings';
+import { getResumeLayout, isCustomResumeSection } from '../../utils/resumeSections';
 import './TemplateStyles.css';
 
-export default function CreativeTemplate({ state, themeColor, fontSize, fontFamily, spacing }) {
-  const { contact, design, workHistory, education, skills, summary, personalDetails, websites, certifications, languages } = state;
-  const sectionOrder = design.sectionOrder || [];
+export default function CreativeTemplate({ state, themeColor, fontSize, fontFamily, spacing, layout }) {
+  const { contact, workHistory, education, skills, summary, personalDetails, websites, certifications, languages } = state;
 
   const fullName = [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Your Name';
 
-  // Divide sections for two columns (Sidebar: contact, skills, languages, details, websites) (Main: summary, work, edu, certs)
-  const sidebarSections = ['skills', 'languages', 'personalDetails', 'websites'];
-  const mainSections = ['summary', 'workHistory', 'education', 'certifications'];
+  // The renderer gets a normalized per-template layout. It never makes its
+  // own ordering decision, so moving a section stays consistent in preview,
+  // PDF, and DOCX while its content remains unchanged.
+  const resolvedLayout = layout || getResumeLayout(state);
+  const sidebarSections = resolvedLayout.columns.sidebar;
+  const mainSections = resolvedLayout.columns.main;
 
   const renderSection = (section, isSidebar = false) => {
     const headingColor = isSidebar ? 'rgba(255,255,255,0.9)' : themeColor;
     const borderStyle = isSidebar ? 'rgba(255,255,255,0.2)' : themeColor;
+    const sectionClassName = isSidebar ? 'tmpl-section tmpl-sidebar-section' : 'tmpl-section';
     
     switch (section) {
       case 'summary':
         if (!summary.content) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="summary">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="summary">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Profile</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
           </div>
@@ -28,17 +35,21 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
       case 'workHistory':
         if (!workHistory.length) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="workHistory">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="workHistory">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Experience</h2>
             {workHistory.map(job => (
               <div key={job.id} className="tmpl-item">
-                <div className="tmpl-item-header">
-                  <strong>{job.jobTitle}</strong>
-                  <span style={{ color: themeColor, fontWeight: 500 }}>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
-                </div>
-                <div className="tmpl-item-sub">
-                  {[job.employer, job.location].filter(Boolean).join(', ')}
-                </div>
+                {!job._pdfContinuation && (
+                  <>
+                    <div className="tmpl-item-header">
+                      <strong>{job.jobTitle}</strong>
+                      <span style={{ color: headingColor, fontWeight: 500 }}>{job.startDate} - {job.currentJob ? 'Present' : job.endDate}</span>
+                    </div>
+                    <div className="tmpl-item-sub">
+                      {[job.employer, job.location].filter(Boolean).join(', ')}
+                    </div>
+                  </>
+                )}
                 {job.description && (
                   <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />
                 )}
@@ -49,13 +60,13 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
       case 'education':
         if (!education.length) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="education">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="education">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Education</h2>
             {education.map(edu => (
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
                   <strong>{edu.degree || edu.level}</strong>
-                  <span style={{ color: themeColor, fontWeight: 500 }}>{edu.graduationDate}</span>
+                  <span style={{ color: headingColor, fontWeight: 500 }}>{edu.graduationDate}</span>
                 </div>
                 <div className="tmpl-item-sub">
                   {[edu.schoolName, edu.fieldOfStudy].filter(Boolean).join(', ')}
@@ -65,29 +76,21 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
           </div>
         );
       case 'skills':
-        if (!skills.textContent && !skills.ratings.length) return null;
+        if (!skills.textContent && !skills.ratings?.some(skill => skill?.name?.trim())) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="skills">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Skills</h2>
-            {skills.textContent ? (
-              <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />
-            ) : (
-              <div className="tmpl-skills-grid" style={{ flexDirection: 'column' }}>
-                {skills.ratings.map(s => (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{s.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {skills.ratings?.some(skill => skill?.name?.trim())
+              ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings !== false} />
+              : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
           </div>
         );
       case 'websites':
         if (!websites.length) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="websites">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="websites">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Links</h2>
-            <ul className="tmpl-list" style={{ paddingLeft: '16px' }}>
+            <ul className="tmpl-list">
               {websites.map(w => <li key={w.id} style={{ wordBreak: 'break-all' }}>{w.url}</li>)}
             </ul>
           </div>
@@ -95,7 +98,7 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
       case 'personalDetails':
         if (!personalDetails.dob && !personalDetails.nationality && !personalDetails.maritalStatus && !personalDetails.gender) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="personalDetails">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="personalDetails">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Personal</h2>
             <div className="tmpl-details-grid" style={{ gridTemplateColumns: '1fr' }}>
               {personalDetails.dob && <div><strong>DOB:</strong> <br/>{personalDetails.dob}</div>}
@@ -108,7 +111,7 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
       case 'certifications':
         if (!certifications.content) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="certifications">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="certifications">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Certifications</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
           </div>
@@ -116,34 +119,35 @@ export default function CreativeTemplate({ state, themeColor, fontSize, fontFami
       case 'languages':
         if (!languages.length) return null;
         return (
-          <div className="tmpl-section" style={{ marginBottom: spacing }} key="languages">
+          <div className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="languages">
             <h2 className="tmpl-heading" style={{ color: headingColor, borderBottom: `2px solid ${borderStyle}` }}>Languages</h2>
             <div className="tmpl-details-grid" style={{ gridTemplateColumns: '1fr' }}>
-              {languages.map(lang => (
-                <div key={lang.id}><strong>{lang.language}:</strong> <br/>{lang.level}</div>
-              ))}
+              {languages.map(lang => <div key={lang.id}>{lang.language}</div>)}
             </div>
           </div>
         );
       default:
-        return null;
+        return isCustomResumeSection(state, section)
+          ? <CustomSections key={section} state={state} themeColor={headingColor} spacing={spacing} sectionIds={[section]} />
+          : null;
     }
   };
 
   return (
-    <div className="template-creative" style={{ fontFamily, fontSize, color: '#333', display: 'flex', minHeight: '100%' }}>
-      <aside className="creative-sidebar" style={{ width: '35%', backgroundColor: themeColor, color: '#fff', padding: '32px 24px' }}>
+    <div className="template-creative" style={{ fontFamily, fontSize, color: '#333', display: 'flex', alignItems: 'stretch' }}>
+      <aside className="creative-sidebar" style={{ width: '35%', alignSelf: 'stretch', backgroundColor: themeColor, color: '#fff', padding: 'var(--resume-page-padding, 32px) calc(var(--resume-page-padding, 32px) * 0.75)' }}>
         <h1 style={{ margin: '0 0 16px 0', fontSize: '2.2em', fontWeight: 700, lineHeight: 1.1 }}>{fullName}</h1>
         
         <div className="creative-contact" style={{ marginBottom: '32px', fontSize: '0.9em', opacity: 0.9 }}>
           {contact.email && <div style={{ marginBottom: '8px' }}>{contact.email}</div>}
           {contact.phone && <div style={{ marginBottom: '8px' }}>{contact.phone}</div>}
           {(contact.city || contact.country) && <div>{[contact.city, contact.country].filter(Boolean).join(', ')}</div>}
+          <HeaderLinks contact={contact} websites={websites} />
         </div>
 
         {sidebarSections.map(s => renderSection(s, true))}
       </aside>
-      <main className="creative-main" style={{ width: '65%', padding: '32px' }}>
+      <main className="creative-main" style={{ width: '65%', minWidth: 0, padding: 'var(--resume-page-padding, 32px)' }}>
         {mainSections.map(s => renderSection(s, false))}
       </main>
     </div>

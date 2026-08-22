@@ -1,9 +1,11 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function EducationSummary() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state, dispatch } = useResume();
 
   const handleDelete = (id) => {
@@ -35,15 +37,17 @@ export default function EducationSummary() {
               )}
             </div>
             <div className="entry-actions">
-              <button type="button" className="entry-action-btn" title="Edit">✏️</button>
-              <button type="button" className="entry-action-btn delete" title="Delete" onClick={(e) => { e.preventDefault(); handleDelete(edu.id); }}>🗑️</button>
+              <button type="button" className="entry-action-btn" title="Edit" onClick={() => navigate('/builder/education-form', {
+                state: { educationId: edu.id, returnTo: location.state?.returnTo, focusSection: location.state?.focusSection },
+              })} aria-label="Edit education"><ResumeIcon name="edit" size={17} /></button>
+              <button type="button" className="entry-action-btn delete" title="Delete" aria-label="Delete education" onClick={(e) => { e.preventDefault(); handleDelete(edu.id); }}><ResumeIcon name="delete" size={17} /></button>
             </div>
           </div>
         ))}
       </div>
 
       <button type="button" className="add-another-btn" onClick={() => navigate('/builder/education-form')} style={{ marginTop: 'var(--space-4)' }}>
-        + Add another education
+        <ResumeIcon name="add" size={18} />Add another education
       </button>
 
       <StepNavigation

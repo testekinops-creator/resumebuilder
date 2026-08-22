@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useResume } from '../../context/ResumeContext';
-import { useTheme } from '../../hooks/useTheme';
 import Navbar from '../../components/Navbar';
-import DOMPurify from 'dompurify';
+import ResumeIcon from '../../components/ResumeIcon';
 import './CoverLetter.css';
 
 const TEMPLATES = [
@@ -12,14 +11,13 @@ const TEMPLATES = [
 ];
 
 const TONE_OPTIONS = [
-  { id: 'formal', label: 'Formal', icon: '🎩' },
-  { id: 'friendly', label: 'Friendly', icon: '😊' },
-  { id: 'confident', label: 'Confident', icon: '💪' },
+  { id: 'formal', label: 'Formal', icon: 'summary' },
+  { id: 'friendly', label: 'Friendly', icon: 'sparkle' },
+  { id: 'confident', label: 'Confident', icon: 'award' },
 ];
 
 export default function CoverLetter() {
   const { state } = useResume();
-  const { isDark, toggle } = useTheme();
 
   const [step, setStep] = useState(1);
   const [letterData, setLetterData] = useState({
@@ -105,11 +103,11 @@ export default function CoverLetter() {
           <h2>Cover Letter Builder</h2>
           <div className="cl-steps">
             {['Details', 'Write', 'Preview'].map((label, i) => (
-              <div key={label} className={`cl-step ${step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''}`}
-                onClick={() => setStep(i + 1)}>
-                <div className="cl-step-number">{step > i + 1 ? '✓' : i + 1}</div>
+              <button type="button" key={label} className={`cl-step ${step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''}`}
+                onClick={() => setStep(i + 1)} aria-current={step === i + 1 ? 'step' : undefined}>
+                <div className="cl-step-number">{step > i + 1 ? <ResumeIcon name="finish" size={16} /> : i + 1}</div>
                 <span>{label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -149,7 +147,7 @@ export default function CoverLetter() {
                     <button key={t.id}
                       className={`cl-tone-btn ${letterData.tone === t.id ? 'active' : ''}`}
                       onClick={() => handleChange('tone', t.id)}>
-                      <span>{t.icon}</span> {t.label}
+                      <ResumeIcon name={t.icon} size={17} />{t.label}
                     </button>
                   ))}
                 </div>
@@ -199,8 +197,8 @@ export default function CoverLetter() {
           {step === 3 && (
             <div className="cl-preview-section">
               <div className="cl-preview-actions">
-                <button className="btn btn-primary" onClick={handleDownload}>📄 Download</button>
-                <button className="btn btn-ghost" onClick={handlePrint}>🖨️ Print</button>
+                <button className="btn btn-primary" onClick={handleDownload}><ResumeIcon name="download" size={18} />Download</button>
+                <button className="btn btn-ghost" onClick={handlePrint}><ResumeIcon name="print" size={18} />Print</button>
               </div>
 
               <div className="cl-preview-page" style={{ borderTop: `4px solid ${selectedTemplate.color}` }}>
@@ -226,12 +224,12 @@ export default function CoverLetter() {
           {/* Navigation */}
           <div className="cl-nav">
             {step > 1 && (
-              <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}>← Back</button>
+              <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}><ResumeIcon name="arrowLeft" size={16} />Back</button>
             )}
             {step < 3 && (
               <button className="btn btn-primary" onClick={handleNextStep}
                 disabled={step === 1 && (!letterData.companyName || !letterData.jobTitle)}>
-                Next →
+                Next <ResumeIcon name="arrowLeft" size={16} style={{ transform: 'rotate(180deg)' }} />
               </button>
             )}
           </div>

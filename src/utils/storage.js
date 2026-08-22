@@ -1,4 +1,28 @@
 const STORAGE_KEY = 'resumeBuilder_state';
+const FINALIZE_WELCOME_DISMISSED_PREFIX = 'resumeBuilder_finalizeWelcomeDismissed_';
+
+function finalizeWelcomeDismissedKey(resumeId) {
+  return `${FINALIZE_WELCOME_DISMISSED_PREFIX}${resumeId || 'current'}`;
+}
+
+// Read this synchronously so the Finalize dialog does not flash on refresh.
+export function isFinalizeWelcomeDismissed(resumeId) {
+  try {
+    return localStorage.getItem(finalizeWelcomeDismissedKey(resumeId)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+// Do not depend on the debounced resume save for a user-visible dismissal.
+export function dismissFinalizeWelcome(resumeId) {
+  try {
+    localStorage.setItem(finalizeWelcomeDismissedKey(resumeId), 'true');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function isStorageAvailable() {
   try {
@@ -58,7 +82,7 @@ export function exportResumeJSON(data) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false, error: 'Failed to export data.' };
   }
 }
@@ -102,7 +126,8 @@ function generateId() {
 export function listResumes() {
   try {
     const index = localStorage.getItem(RESUMES_INDEX_KEY);
-    return index ? JSON.parse(index) : [];
+    const parsed = index ? JSON.parse(index) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -112,7 +137,7 @@ function saveResumeIndex(index) {
   localStorage.setItem(RESUMES_INDEX_KEY, JSON.stringify(index));
 }
 
-export function saveResumeById(id, data) {
+export function saveResumeById(id, data, completeness = 0) {
   try {
     const toSave = { ...data };
     delete toSave._history;
@@ -126,7 +151,7 @@ export function saveResumeById(id, data) {
       name: data.meta?.name || 'Untitled Resume',
       updatedAt: new Date().toISOString(),
       templateId: data.meta?.templateId || 'classic',
-      completeness: data._completeness || 0,
+      completeness,
     };
     if (existing >= 0) {
       index[existing] = { ...index[existing], ...entry };
@@ -168,7 +193,7 @@ export function duplicateResume(id) {
   const data = loadResumeById(id);
   if (!data) return null;
   const newId = generateId();
-  data.meta = { ...data.meta, name: `${data.meta?.name || 'Resume'} (Copy)` };
+  data.meta = { ...data.meta, id: newId, name: `${data.meta?.name || 'Resume'} (Copy)` };
   saveResumeById(newId, data);
   return newId;
 }

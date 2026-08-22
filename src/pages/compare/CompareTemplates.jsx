@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
 import { TEMPLATES } from '../../data/templates';
 import ResumePreview from '../../components/ResumePreview';
 import Navbar from '../../components/Navbar';
+import ResumeIcon from '../../components/ResumeIcon';
 import './CompareTemplates.css';
 
 export default function CompareTemplates() {
@@ -58,10 +60,10 @@ export default function CompareTemplates() {
         {/* Preview Comparison */}
         {!hasResumeData ? (
           <div className="compare-empty">
-            <div className="compare-empty-icon">📝</div>
+            <div className="compare-empty-icon"><ResumeIcon name="summary" size={40} /></div>
             <h3>No resume data yet</h3>
             <p>Start building your resume first, then come back to compare templates side by side.</p>
-            <a href="/get-started" className="btn btn-primary">Create My Resume</a>
+            <Link to="/get-started" className="btn btn-primary">Create My Resume</Link>
           </div>
         ) : (
           <div className="compare-previews">

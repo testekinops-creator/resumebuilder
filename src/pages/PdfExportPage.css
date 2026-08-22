@@ -1,0 +1,118 @@
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+html:has(.pdf-export-document),
+body:has(.pdf-export-document),
+#root:has(.pdf-export-document) {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+.pdf-export-document {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+/* This route renders the exact preview tree. Do not introduce an export-only
+   page grid or a template-specific fixed height: Chromium can then paginate
+   blocks from every template with the same break rules used by the UI. */
+.pdf-export-document .preview-container {
+  --preview-scale: 1 !important;
+  display: block !important;
+  position: static;
+  top: auto;
+  width: 210mm;
+  min-height: 297mm;
+  height: auto;
+  overflow: visible;
+}
+
+.pdf-export-document .preview-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  padding: 0;
+  transform: none !important;
+  box-shadow: none;
+  border: 0;
+  border-radius: 0;
+  animation: none;
+  overflow: visible;
+}
+
+.pdf-export-document .preview-page::after {
+  display: none;
+}
+
+/* A heading must travel with its first content block, but a long section,
+   entry, paragraph, or list remains free to continue onto the next page. */
+.pdf-export-document .tmpl-heading,
+.pdf-export-document .tmpl-item-header,
+.pdf-export-document .tmpl-item-sub {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.pdf-export-document .tmpl-section,
+.pdf-export-document .tmpl-item,
+.pdf-export-document .template-creative,
+.pdf-export-document .accountant-columns,
+.pdf-export-document .developer-columns {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+/* Preserve normal list rhythm without making an entire list unbreakable. */
+.pdf-export-document .tmpl-content li,
+.pdf-export-document .tmpl-content p {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Let decorated areas paint independently as browser fragments cross pages. */
+.pdf-export-document .classic-body,
+.pdf-export-document .modern-body,
+.pdf-export-document .professional-body,
+.pdf-export-document .minimal-body,
+.pdf-export-document .executive-body,
+.pdf-export-document .creative-main,
+.pdf-export-document .creative-sidebar,
+.pdf-export-document .accountant-main,
+.pdf-export-document .accountant-sidebar,
+.pdf-export-document .developer-left,
+.pdf-export-document .developer-right {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Chromium repeats fixed content on every physical PDF page. */
+.pdf-export-document::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  border: var(--print-page-border-width, 0px) solid var(--print-page-border-color, transparent);
+  pointer-events: none;
+}
+
+.pdf-export-document,
+.pdf-export-document * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.pdf-export-error {
+  color: #991B1B;
+  font: 16px/1.5 Arial, sans-serif;
+  padding: 24px;
+}

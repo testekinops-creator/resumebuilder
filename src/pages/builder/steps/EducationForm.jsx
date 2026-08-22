@@ -1,16 +1,21 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import { DEGREE_OPTIONS } from '../../../data/templates';
 import StepNavigation from '../../../components/StepNavigation';
 import MonthYearSelect from '../../../components/MonthYearSelect';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function EducationForm() {
   const navigate = useNavigate();
-  const { dispatch } = useResume();
+  const location = useLocation();
+  const { state: resumeState, dispatch } = useResume();
+  const editingEducation = resumeState.education.find(education => education.id === location.state?.educationId);
+  const isEditing = Boolean(editingEducation);
   const [form, setForm] = useState({
     schoolName: '', location: '', degree: '',
     fieldOfStudy: '', graduationDate: '', coursework: '',
+    ...editingEducation,
   });
   const [errors, setErrors] = useState({});
   const [showEmptyModal, setShowEmptyModal] = useState(false);
@@ -33,8 +38,15 @@ export default function EducationForm() {
       return false;
     }
     if (!validate()) return false;
-    dispatch({ type: 'ADD_EDUCATION', payload: form });
-    navigate('/builder/education-summary');
+    dispatch({
+      type: isEditing ? 'UPDATE_EDUCATION' : 'ADD_EDUCATION',
+      payload: isEditing ? { ...form, id: editingEducation.id } : form,
+    });
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo, { state: { focusSection: location.state.focusSection } });
+    } else {
+      navigate('/builder/education-summary');
+    }
     return false;
   };
 
@@ -44,7 +56,7 @@ export default function EducationForm() {
 
   return (
     <div className="step-page">
-      <h1>Tell us about your education</h1>
+      <h1>{isEditing ? 'Edit your education' : 'Tell us about your education'}</h1>
       <p className="step-subtitle">Enter the details of your most recent or most relevant education.</p>
 
       <div className="step-form">
@@ -94,7 +106,7 @@ export default function EducationForm() {
       </div>
 
       <StepNavigation
-        backPath="/builder/education-level"
+        backPath={isEditing ? '/builder/education-summary' : '/builder/education-level'}
         nextPath="/builder/education-summary"
         nextLabel="Next"
         onNext={handleNext}
@@ -104,7 +116,7 @@ export default function EducationForm() {
       {showEmptyModal && (
         <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="mobile-preview-content" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', background: 'white', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>×</button>
+            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
             
             <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Don't forget to include your educational background</h3>
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>

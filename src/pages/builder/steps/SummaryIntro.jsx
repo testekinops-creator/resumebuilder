@@ -1,5 +1,6 @@
 import { useResume } from '../../../context/ResumeContext';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function SummaryIntro() {
   const { state } = useResume();
@@ -22,7 +23,7 @@ export default function SummaryIntro() {
 
       {strengths.length > 0 && (
         <div className="callout callout-ai" style={{ marginTop: 'var(--space-6)' }}>
-          <span style={{ fontSize: '1.5rem' }}>✦</span>
+          <ResumeIcon name="sparkle" size={24} />
           <div>
             <strong>Based on your resume, here are your key strengths:</strong>
             <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ResumeIcon from './ResumeIcon';
 import './AuthModal.css';
 
 export default function AuthModal({ onClose }) {
@@ -20,8 +21,8 @@ export default function AuthModal({ onClose }) {
   return (
     <div className="auth-modal-overlay" onClick={onClose}>
       <div className="auth-modal-content" onClick={e => e.stopPropagation()}>
-        <button className="auth-close-btn" onClick={onClose} aria-label="Close">
-          ×
+        <button className="auth-close-btn" onClick={onClose} aria-label="Close" title="Close">
+          <ResumeIcon name="close" size={20} />
         </button>
         
         <h2 className="auth-title">Welcome Back</h2>

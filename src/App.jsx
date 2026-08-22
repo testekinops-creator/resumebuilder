@@ -28,6 +28,7 @@ const PersonalDetails = lazy(() => import('./pages/builder/steps/PersonalDetails
 const WebsitesProfiles = lazy(() => import('./pages/builder/steps/WebsitesProfiles'));
 const CertificationsEditor = lazy(() => import('./pages/builder/steps/CertificationsEditor'));
 const LanguagesForm = lazy(() => import('./pages/builder/steps/LanguagesForm'));
+const CustomSectionsEditor = lazy(() => import('./pages/builder/steps/CustomSectionsEditor'));
 const SmartApply = lazy(() => import('./pages/builder/steps/SmartApply'));
 const FinalEditor = lazy(() => import('./pages/builder/FinalEditor'));
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
@@ -35,6 +36,7 @@ const Examples = lazy(() => import('./pages/examples/Examples'));
 const CoverLetter = lazy(() => import('./pages/coverletter/CoverLetter'));
 const CompareTemplates = lazy(() => import('./pages/compare/CompareTemplates'));
 const CareerCenter = lazy(() => import('./pages/career/CareerCenter'));
+const PdfExportPage = lazy(() => import('./pages/PdfExportPage'));
 
 function LoadingFallback() {
   return (
@@ -48,7 +50,7 @@ function LoadingFallback() {
 function App() {
   return (
     <ResumeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -75,6 +77,7 @@ function App() {
               <Route path="websites" element={<WebsitesProfiles />} />
               <Route path="certifications" element={<CertificationsEditor />} />
               <Route path="languages" element={<LanguagesForm />} />
+              <Route path="custom-sections" element={<CustomSectionsEditor />} />
               <Route path="smart-apply" element={<SmartApply />} />
             </Route>
             <Route path="/finalize" element={<FinalEditor />} />
@@ -83,6 +86,7 @@ function App() {
             <Route path="/cover-letter" element={<CoverLetter />} />
             <Route path="/compare" element={<CompareTemplates />} />
             <Route path="/career" element={<CareerCenter />} />
+            <Route path="/pdf-export" element={<PdfExportPage />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

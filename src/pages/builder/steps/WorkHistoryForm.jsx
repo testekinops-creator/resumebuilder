@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import StepNavigation from '../../../components/StepNavigation';
 import MonthYearSelect from '../../../components/MonthYearSelect';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function WorkHistoryForm() {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export default function WorkHistoryForm() {
       {showEmptyModal && (
         <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="mobile-preview-content" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', background: 'white', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>×</button>
+            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
             
             <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Don't forget to include other work experience</h3>
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>

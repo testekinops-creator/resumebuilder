@@ -1,21 +1,177 @@
 /* Template Base Styles */
 
 .tmpl-section {
-  page-break-inside: avoid;
+  /* A complete section can be taller than a page. Let those sections continue
+     naturally instead of pushing all of their content to the next page. */
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+.template-classic,
+.template-modern,
+.template-professional,
+.template-creative,
+.template-minimal,
+.template-executive,
+.template-accountant,
+.template-developer,
+.template-timeline,
+.template-editorial,
+.template-ats-serif {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.template-creative {
+  align-items: stretch;
+  /* Do not turn a two-column resume into one fixed A4-sized flex item. The
+     page renderer owns pagination and may fragment section content normally. */
+  min-height: 0;
+}
+
+.creative-sidebar,
+.creative-main {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.creative-sidebar {
+  align-self: stretch;
+  --sidebar-item-gap: 6px;
+  --sidebar-item-line-height: 1.45;
+}
+
+/* One content rail keeps the contact block, headings, rules, and every
+   sidebar item aligned. The sidebar itself owns the only horizontal padding. */
+.creative-sidebar > h1,
+.creative-sidebar .creative-contact,
+.creative-sidebar .tmpl-sidebar-section,
+.creative-sidebar .tmpl-sidebar-section .tmpl-heading {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.creative-sidebar .creative-contact {
+  display: grid;
+  gap: var(--sidebar-item-gap);
+  line-height: var(--sidebar-item-line-height);
+}
+
+.creative-sidebar .creative-contact > div {
+  margin: 0 !important;
+}
+
+.creative-sidebar .creative-contact > a {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-heading {
+  width: 100%;
+}
+
+/* Creative-family templates use a deliberately narrow colored sidebar. Keep
+   list-based content there in one readable column without affecting the wider
+   main column or the single-column template families. */
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-grid {
+  align-items: stretch;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: var(--sidebar-item-gap);
+  line-height: var(--sidebar-item-line-height);
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-grid > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ul,
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ol,
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ul:has(> li:nth-child(5)),
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ol:has(> li:nth-child(5)) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sidebar-item-gap) 0;
+  padding-left: 0;
+  line-height: var(--sidebar-item-line-height);
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ul > li,
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ol > li {
+  padding-left: 0;
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ul > li::before,
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-content > ol > li::before {
+  content: none;
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-details-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: var(--sidebar-item-gap);
+  line-height: var(--sidebar-item-line-height);
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-list {
+  display: grid;
+  gap: var(--sidebar-item-gap);
+  margin: 0;
+  padding-left: 0 !important;
+  list-style: none;
+  line-height: var(--sidebar-item-line-height);
+}
+
+.creative-sidebar .tmpl-sidebar-section .tmpl-list > li,
+.creative-sidebar .tmpl-sidebar-section .tmpl-details-grid > *,
+.creative-sidebar .tmpl-sidebar-section .tmpl-skills-grid > * {
+  margin: 0;
+  min-width: 0;
+  padding-left: 0;
+}
+
+/* A section can be moved into the Creative sidebar. Preserve readable dates,
+   subtitles, lists, and rich-text content rather than carrying main-column
+   ink colors into the accent surface. */
+.creative-sidebar .tmpl-item-sub,
+.creative-sidebar .tmpl-content,
+.creative-sidebar .tmpl-list,
+.creative-sidebar .tmpl-details-grid {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.creative-sidebar .tmpl-item-header > :last-child {
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .tmpl-heading {
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--resume-heading-gap, 12px);
   padding-bottom: 4px;
   font-size: 1.4em;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--resume-heading-letter-spacing, 0.5px);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* Keep the section title, rule, and the beginning of its content together.
+   Individual entries still avoid splitting, so a page break happens cleanly
+   between resume entries rather than after a heading. */
+.tmpl-heading + * {
+  page-break-before: avoid;
+  break-before: avoid;
 }
 
 .tmpl-item {
-  margin-bottom: 16px;
+  margin-bottom: var(--resume-entry-gap, 16px);
+  /* A job can contain far more content than one page. Marking the entire
+     item unbreakable pushes it to the next page and creates a large blank
+     area. Keep its identity together, but let long descriptions continue. */
+  page-break-inside: auto;
+  break-inside: auto;
 }
 .tmpl-item:last-child {
   margin-bottom: 0;
@@ -25,8 +181,27 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   margin-bottom: 4px;
   font-size: 1.1em;
+}
+
+.tmpl-item-header > :last-child {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tmpl-item-header,
+.tmpl-item-sub {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.tmpl-item .tmpl-content > ul > li,
+.tmpl-item .tmpl-content > ol > li {
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .tmpl-item-sub {
@@ -36,17 +211,88 @@
 }
 
 .tmpl-content {
-  line-height: 1.5;
+  line-height: var(--resume-line-height, 1.5);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.tmpl-content *,
+.tmpl-list,
+.tmpl-list *,
+.tmpl-details-grid,
+.tmpl-details-grid * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .tmpl-content p {
-  margin-bottom: 8px;
+  margin-bottom: var(--resume-paragraph-gap, var(--resume-paragraph-spacing, 8px));
 }
 .tmpl-content ul {
   padding-left: 20px;
   margin-bottom: 8px;
+  list-style: disc outside;
+}
+.tmpl-content ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+  list-style: decimal outside;
 }
 .tmpl-content li {
-  margin-bottom: 4px;
+  margin-bottom: var(--resume-list-gap, 4px);
+}
+
+/* Keep the HTML list order for ATS parsing while presenting compact skills in
+   responsive columns. Four or fewer skills use two columns; five or more use
+   three when the resume column has enough room. */
+.tmpl-skills-content {
+  container-type: inline-size;
+}
+
+.tmpl-skills-content > ul,
+.tmpl-skills-content > ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 14px;
+  padding-left: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.tmpl-skills-content > ul:has(> li:nth-child(5)),
+.tmpl-skills-content > ol:has(> li:nth-child(5)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tmpl-skills-content > ul > li,
+.tmpl-skills-content > ol > li {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding-left: 10px;
+  break-inside: avoid;
+}
+
+.tmpl-skills-content > ul > li::before,
+.tmpl-skills-content > ol > li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--theme-color, #6B21A8);
+}
+
+@container (max-width: 330px) {
+  .tmpl-skills-content > ul:has(> li:nth-child(5)),
+  .tmpl-skills-content > ol:has(> li:nth-child(5)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tmpl-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
 }
 
 /* Grids */
@@ -63,12 +309,415 @@
   font-size: 0.9em;
 }
 
+/* Rated skills use the same bulleted rhythm as text-editor skill lists. */
+.tmpl-skill-ratings {
+  display: grid;
+  gap: 5px;
+  margin: var(--resume-paragraph-gap, 8px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tmpl-skill-rating {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.93em;
+}
+
+.tmpl-skill-names-only .tmpl-skill-rating {
+  justify-content: flex-start;
+}
+
+.tmpl-skill-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tmpl-skill-bullet {
+  flex: 0 0 auto;
+  line-height: inherit;
+}
+
+.tmpl-skill-stars {
+  flex: 0 0 auto;
+  color: var(--theme-color, #6B21A8);
+  font-size: 0.88em;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.tmpl-skill-stars-empty { color: color-mix(in srgb, currentColor 22%, transparent); }
+
+.creative-sidebar .tmpl-skill-stars { color: rgba(255, 255, 255, 0.95); }
+
 .tmpl-list {
   padding-left: 20px;
+  list-style: disc outside;
 }
 
 .tmpl-details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
   gap: 8px;
+}
+
+/* Accountant: native version of the supplied monochrome professional layout. */
+.template-accountant {
+  /* The preview page supplies its A4 minimum. Keeping a second page-height
+     constraint here makes the whole two-column body act like one print block. */
+  min-height: 0;
+  background: #fff;
+}
+
+.accountant-header {
+  padding: calc(var(--resume-page-padding, 32px) * 1.15) var(--resume-page-padding, 32px) 18px;
+  background: #f1f1f0;
+}
+
+.accountant-header h1,
+.accountant-header p {
+  margin: 0;
+}
+
+.accountant-header h1 {
+  color: var(--accountant-ink, #2d2d2f);
+  font-size: 2.55em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.accountant-header p {
+  margin-top: 7px;
+  color: #8a857d;
+  font-size: 1.45em;
+  font-weight: 400;
+}
+
+.accountant-summary {
+  padding: var(--resume-page-padding, 32px) var(--resume-page-padding, 32px) 0;
+}
+
+.accountant-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.58fr) minmax(190px, 0.86fr);
+  margin: 6px var(--resume-page-padding, 32px) 0;
+  border-top: 2px solid #dddddb;
+}
+
+.accountant-main,
+.accountant-sidebar {
+  min-width: 0;
+  padding: 26px 0 var(--resume-page-padding, 32px);
+}
+
+.accountant-main { padding-right: calc(var(--resume-page-padding, 32px) * 0.72); }
+
+.accountant-sidebar {
+  padding-left: calc(var(--resume-page-padding, 32px) * 0.72);
+  border-left: 2px solid #dddddb;
+}
+
+.accountant-heading,
+.accountant-contact h2 {
+  margin-bottom: 13px;
+  color: var(--accountant-ink, #2d2d2f);
+  font-size: 1.32em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.accountant-heading { border: 0; padding-bottom: 0; }
+
+.accountant-contact {
+  padding-bottom: 22px;
+  border-bottom: 2px solid #dddddb;
+  line-height: 1.5;
+}
+
+.accountant-contact h2 { margin-top: 0; }
+.accountant-contact > div,
+.accountant-contact > a { display: block; margin-bottom: 7px; overflow-wrap: anywhere; }
+
+.accountant-entry { margin-bottom: 18px; }
+.accountant-entry-meta { margin-bottom: 4px; color: #8a857d; font-size: 0.93em; }
+.accountant-entry-title { display: block; margin-bottom: 5px; color: var(--accountant-ink, #2d2d2f); font-size: 1.06em; }
+
+.accountant-skill-list,
+.accountant-detail-list { display: grid; gap: 6px; }
+
+.accountant-skill-list > span { display: block; }
+.accountant-detail-list > div { display: grid; gap: 1px; }
+.accountant-detail-list strong { font-size: 0.91em; }
+
+.accountant-plain-list { margin: 0; padding-left: 18px; }
+.accountant-plain-list li { margin-bottom: 5px; }
+
+/* Developer: native version of the supplied blue framed technical layout. */
+.template-developer {
+  position: relative;
+  box-sizing: border-box;
+  /* Let long two-column content fragment naturally in the preview and PDF. */
+  min-height: 0;
+  background: #fff;
+}
+
+.template-developer::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 3px solid var(--developer-accent, #5872ff);
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+.developer-header { padding: 46px 52px 20px; }
+.developer-header h1,
+.developer-header p { margin: 0; }
+
+.developer-header h1 {
+  color: #050505;
+  font-size: 2.45em;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.developer-header p {
+  margin-top: 15px;
+  color: #050505;
+  font-size: 1.42em;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.developer-contact { display: grid; gap: 6px; margin-top: 22px; line-height: 1.35; }
+.developer-contact > div { display: flex; align-items: baseline; gap: 11px; }
+.developer-contact > div span { color: var(--developer-accent, #5872ff); font-size: 0.64em; }
+.developer-contact > a { color: inherit; overflow-wrap: anywhere; }
+
+.developer-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.34fr);
+  gap: 38px;
+  padding: 22px 52px 54px;
+}
+
+.developer-left,
+.developer-right { min-width: 0; }
+.developer-heading { margin-bottom: 14px; padding: 0; border: 0; font-size: 1.28em; font-weight: 800; letter-spacing: 0.24em; }
+.developer-entry { margin-bottom: 19px; }
+.developer-entry-title { display: block; margin-bottom: 7px; font-size: 1.02em; font-weight: 800; letter-spacing: 0.065em; text-transform: uppercase; }
+.developer-employer { margin-bottom: 7px; font-size: 1.02em; }
+.developer-date { margin-bottom: 11px; font-weight: 800; }
+
+.developer-skill-list { display: grid; gap: 8px; }
+.developer-skill-list > span { display: block; }
+.developer-plain-list { margin: 0; padding-left: 18px; }
+.developer-plain-list li { margin-bottom: 5px; }
+.developer-detail-list { display: grid; gap: 7px; }
+.developer-detail-list > div { display: grid; gap: 1px; }
+.developer-detail-list strong { font-size: 0.91em; }
+
+/* Timeline: a structured professional two-column layout with a visual career rail. */
+.template-timeline {
+  min-height: 0;
+  background: #fff;
+  color: #303744;
+}
+
+.timeline-header {
+  padding: 48px var(--resume-page-padding, 32px) 20px;
+}
+
+.timeline-header h1,
+.timeline-header p { margin: 0; }
+.timeline-header h1 {
+  color: var(--timeline-accent, #2e3a4d);
+  font-size: 2.45em;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.timeline-header p {
+  margin-top: 11px;
+  font-size: 1.3em;
+  font-weight: 400;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+.timeline-header-rule { height: 2px; margin: 0 var(--resume-page-padding, 32px); background: var(--timeline-accent, #2e3a4d); }
+.timeline-layout {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.36fr) 25px minmax(0, 0.96fr);
+  gap: 0 18px;
+  padding: 35px var(--resume-page-padding, 32px) 46px;
+}
+.timeline-sidebar,
+.timeline-main { min-width: 0; }
+.timeline-contact,
+.timeline-sidebar-section { line-height: 1.5; }
+.timeline-contact { margin-bottom: var(--resume-section-gap, 20px); }
+.timeline-contact h2,
+.timeline-section .tmpl-heading {
+  margin-bottom: 11px;
+  padding-bottom: 5px;
+  color: var(--timeline-accent, #2e3a4d);
+  border-bottom: 2px solid color-mix(in srgb, var(--timeline-accent, #2e3a4d) 86%, transparent);
+  font-size: 1.18em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.timeline-main .timeline-section .tmpl-heading { font-size: 1.28em; }
+.timeline-contact > div,
+.timeline-contact > a { display: block; margin-bottom: 6px; overflow-wrap: anywhere; }
+.timeline-sidebar .tmpl-list { margin: 0; padding-left: 18px; }
+.timeline-sidebar .tmpl-list li { margin-bottom: 5px; }
+.timeline-sidebar .tmpl-skills-content > ul,
+.timeline-sidebar .tmpl-skills-content > ol { grid-template-columns: minmax(0, 1fr); }
+.timeline-rail { position: relative; align-self: stretch; min-height: 300px; }
+.timeline-rail::before { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #4a4a4a; content: ''; transform: translateX(-50%); }
+.timeline-rail span { position: relative; display: block; width: 9px; height: 9px; margin: 2px auto 130px; border: 2px solid #4a4a4a; border-radius: 50%; background: #fff; z-index: 1; }
+.timeline-rail span:first-child { width: 16px; height: 16px; margin-top: 0; background: var(--timeline-accent, #2e3a4d); border-color: var(--timeline-accent, #2e3a4d); }
+.timeline-entry .tmpl-item-header > :last-child { color: var(--timeline-accent, #2e3a4d); font-size: 0.88em; font-weight: 700; }
+.timeline-entry .tmpl-item-sub { margin-bottom: 7px; }
+
+/* Editorial: centered masthead, soft contact band, editorial rules and skills grid. */
+.template-editorial { min-height: 0; background: #fff; color: #707070; }
+.editorial-header { padding: 46px var(--resume-page-padding, 32px) 24px; text-align: center; }
+.editorial-header h1,
+.editorial-header p { margin: 0; }
+.editorial-header h1 {
+  color: var(--editorial-accent, #c7a0a8);
+  font-size: 2.55em;
+  font-weight: 400;
+  letter-spacing: 0.035em;
+  line-height: 1.08;
+  text-transform: uppercase;
+}
+.editorial-header p { margin-top: 8px; color: #626262; font-size: 1.25em; text-transform: uppercase; }
+.editorial-contact-band {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  padding: 12px var(--resume-page-padding, 32px);
+  background: #f0f0f2;
+  color: #777;
+}
+.editorial-contact-band a { color: inherit; }
+.editorial-body { padding: 34px var(--resume-page-padding, 32px) 48px; }
+.editorial-section {
+  border-top: 2px solid #666;
+  padding-top: 21px;
+}
+.editorial-section .tmpl-heading {
+  padding: 0;
+  border: 0;
+  color: var(--editorial-accent, #c7a0a8);
+  font-size: 1.18em;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.editorial-entry { margin-bottom: 22px; }
+.editorial-entry .tmpl-item-header > :last-child { color: var(--editorial-accent, #c7a0a8); }
+.editorial-entry .tmpl-item-sub { margin-bottom: 10px; }
+.editorial-section .tmpl-skills-content > ul,
+.editorial-section .tmpl-skills-content > ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 22px; }
+
+/* ATS Serif: uncluttered typography, semantic content flow, and no decorative imagery. */
+.template-ats-serif { min-height: 0; background: #fff; color: #171717; }
+.ats-serif-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(185px, 0.46fr);
+  gap: 28px;
+  align-items: start;
+  margin: 0 var(--resume-page-padding, 32px);
+  padding: 46px 0 30px;
+  border-bottom: 2px solid #9a9a9a;
+}
+.ats-serif-header h1,
+.ats-serif-header p { margin: 0; }
+.ats-serif-header h1 { font-size: 2.55em; font-weight: 400; letter-spacing: 0.035em; text-transform: uppercase; }
+.ats-serif-header p { margin-top: 10px; font-size: 1.48em; font-weight: 400; letter-spacing: 0.025em; }
+.ats-serif-contact { text-align: right; line-height: 1.7; overflow-wrap: anywhere; }
+.ats-serif-contact > a { color: inherit; }
+.ats-serif-body { padding: 20px var(--resume-page-padding, 32px) 44px; }
+.ats-serif-section { border-top: 2px solid #a3a3a3; padding-top: 13px; }
+.ats-serif-section:first-child { border-top: 0; padding-top: 0; }
+.ats-serif-section .tmpl-heading {
+  padding: 0;
+  border: 0;
+  color: #181818;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.75em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: none;
+}
+.ats-serif-entry { margin-bottom: 19px; }
+.ats-serif-entry .tmpl-item-header { font-size: 1.05em; }
+.ats-serif-entry .tmpl-item-header > :last-child { color: #252525; font-style: italic; font-weight: 500; }
+.ats-serif-entry .tmpl-item-sub { margin-bottom: 8px; }
+
+@media (max-width: 440px) {
+  .accountant-columns,
+  .developer-columns,
+  .timeline-layout,
+  .ats-serif-header { grid-template-columns: 1fr; }
+
+  .accountant-sidebar {
+    border-top: 2px solid #dddddb;
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .accountant-main { padding-right: 0; }
+  .developer-columns { gap: 0; }
+  .timeline-rail { display: none; }
+  .timeline-layout { gap: 18px; }
+  .editorial-section .tmpl-skills-content > ul,
+  .editorial-section .tmpl-skills-content > ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ats-serif-contact { text-align: left; }
+}
+
+@media print {
+  .classic-header,
+  .modern-header,
+  .professional-header,
+  .minimal-header,
+  .executive-header,
+  .creative-sidebar {
+    break-after: avoid;
+  }
+
+  /* Two-column templates can fragment between their sections, entries, and
+     paragraphs. Keep ordinary rich-text blocks intact when possible so a
+     single final line is not stranded on a mostly empty PDF page. An
+     over-page block is still allowed to continue by the browser. */
+  .template-accountant .tmpl-content p,
+  .template-accountant .tmpl-content li,
+  .template-developer .tmpl-content p,
+  .template-developer .tmpl-content li,
+  .template-timeline .tmpl-content p,
+  .template-timeline .tmpl-content li,
+  .template-editorial .tmpl-content p,
+  .template-editorial .tmpl-content li,
+  .template-ats-serif .tmpl-content p,
+  .template-ats-serif .tmpl-content li {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 }

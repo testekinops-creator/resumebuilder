@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import ResumeIcon from '../components/ResumeIcon';
 import './LandingPage.css';
 
 const FAQ_ITEMS = [
   { q: 'What is an AI resume builder?', a: 'An AI resume builder uses artificial intelligence to help you create a professional resume. It suggests bullet points, optimizes your content for ATS (Applicant Tracking Systems), and provides industry-specific phrasing to make your resume stand out.' },
-  { q: 'Should I download my new resume as a PDF or text file?', a: 'We recommend downloading as PDF. PDF preserves your formatting exactly as designed, looks professional, and is widely accepted by employers and ATS systems. Our builder generates high-quality PDFs at 300 DPI.' },
-  { q: 'How can I use Resume Builder for free?', a: 'Resume Builder is completely free with no hidden fees. You can create unlimited resumes, use all 6 templates, and download as many PDFs as you want. Your data stays on your device — no account required.' },
+  { q: 'Should I download my new resume as a PDF or text file?', a: 'We recommend downloading as PDF. PDF preserves your formatting, looks professional, and is widely accepted by employers and ATS systems. Our builder creates a selectable, searchable vector-text PDF.' },
+  { q: 'How can I use Resume Builder for free?', a: 'Resume Builder is completely free with no hidden fees. You can create unlimited resumes, use every template, and download as many PDFs as you want. Your data stays on your device — no account required.' },
   { q: 'How do I use the cover letter builder?', a: 'Navigate to the Cover Letter Builder from the landing page or dashboard. Choose a tone (Formal, Friendly, or Confident), enter the company and job details, and our builder will generate a customized cover letter that you can edit and download.' },
   { q: 'Can I create multiple resumes?', a: 'Yes! Use the Dashboard to create and manage multiple resumes. Each resume can use a different template and be tailored for different job applications. You can duplicate, edit, or export any resume at any time.' },
   { q: 'Is my data safe and private?', a: 'Absolutely. Resume Builder runs entirely in your browser. Your data is stored locally on your device using localStorage and IndexedDB. We never send your personal information to any server.' },
-  { q: 'What templates are available?', a: 'We offer 6 professionally designed templates: Classic, Modern, Professional, Creative, Minimal, and Executive. Each template supports customizable colors, fonts, and layouts to match your personal style and industry.' },
+  { q: 'What templates are available?', a: 'The collection includes Classic, Modern, Professional, Creative, Minimal, Executive, Timeline, Editorial, ATS Serif, and more. Each template supports customizable colors, fonts, and layouts to match your personal style and industry.' },
 ];
 
 function FaqItem({ item }) {
@@ -46,12 +47,12 @@ export default function LandingPage() {
             </p>
             <div className="hero-stats">
               <div className="stat">
-                <span className="stat-arrow">↑</span>
+                <span className="stat-arrow"><ResumeIcon name="arrowUp" size={18} /></span>
                 <span className="stat-value">38%</span>
                 <span className="stat-label">more interviews</span>
               </div>
               <div className="stat">
-                <span className="stat-arrow">↑</span>
+                <span className="stat-arrow"><ResumeIcon name="arrowUp" size={18} /></span>
                 <span className="stat-value">23%</span>
                 <span className="stat-label">more job offers</span>
               </div>
@@ -67,41 +68,82 @@ export default function LandingPage() {
           </div>
 
           <div className="hero-visual">
-            <div className="hero-resume-mockup">
-              <div className="mockup-header">
-                <div className="mockup-avatar"></div>
-                <div className="mockup-lines">
-                  <div className="mockup-line w60"></div>
-                  <div className="mockup-line w40"></div>
-                </div>
-              </div>
-              <div className="mockup-body">
-                <div className="mockup-section">
-                  <div className="mockup-section-title"></div>
-                  <div className="mockup-line w90"></div>
-                  <div className="mockup-line w80"></div>
-                  <div className="mockup-line w70"></div>
-                </div>
-                <div className="mockup-section">
-                  <div className="mockup-section-title"></div>
-                  <div className="mockup-line w85"></div>
-                  <div className="mockup-line w75"></div>
-                </div>
-                <div className="mockup-section">
-                  <div className="mockup-section-title"></div>
-                  <div className="mockup-skills">
-                    <div className="mockup-skill"></div>
-                    <div className="mockup-skill"></div>
-                    <div className="mockup-skill"></div>
-                    <div className="mockup-skill"></div>
+            <div className="hero-visual-glow" aria-hidden="true" />
+            <div className="hero-resume-mockup" aria-hidden="true">
+              <aside className="landing-resume-sidebar">
+                <div className="landing-profile-row">
+                  <div className="landing-profile-avatar">JL</div>
+                  <div>
+                    <strong>Jordan Lee</strong>
+                    <span>Product Designer</span>
                   </div>
                 </div>
+
+                <div className="landing-sidebar-block landing-contact-block">
+                  <span className="landing-resume-kicker">Contact</span>
+                  <span>jordan.lee@email.com</span>
+                  <span>+91 98765 43210</span>
+                  <span>Mumbai, India</span>
+                </div>
+
+                <div className="landing-sidebar-block">
+                  <span className="landing-resume-kicker">Skills</span>
+                  <div className="landing-skill-list">
+                    <span>Product strategy</span>
+                    <span>UX research</span>
+                    <span>Design systems</span>
+                    <span>Figma</span>
+                  </div>
+                </div>
+
+                <div className="landing-sidebar-block landing-education-block">
+                  <span className="landing-resume-kicker">Education</span>
+                  <strong>B.Des, Interaction</strong>
+                  <span>Design Institute</span>
+                  <span>2018 — 2022</span>
+                </div>
+              </aside>
+
+              <div className="landing-resume-main">
+                <header className="landing-resume-header">
+                  <span className="landing-resume-eyebrow">Portfolio resume</span>
+                  <h2>Jordan Lee</h2>
+                  <p>Senior Product Designer</p>
+                </header>
+
+                <section className="landing-resume-section">
+                  <h3>Professional summary</h3>
+                  <p>Product designer turning complex workflows into clear, high-converting experiences.</p>
+                </section>
+
+                <section className="landing-resume-section landing-experience-section">
+                  <h3>Experience</h3>
+                  <article className="landing-experience-item">
+                    <div className="landing-experience-heading">
+                      <div><strong>Senior Product Designer</strong><span>Northstar Labs</span></div>
+                      <time>2022 — Now</time>
+                    </div>
+                    <div className="landing-copy-lines"><span /><span /><span className="short" /></div>
+                  </article>
+                  <article className="landing-experience-item">
+                    <div className="landing-experience-heading">
+                      <div><strong>Product Designer</strong><span>Studio &amp; Co.</span></div>
+                      <time>2020 — 2022</time>
+                    </div>
+                    <div className="landing-copy-lines"><span /><span className="medium" /></div>
+                  </article>
+                </section>
+
+                <section className="landing-resume-section landing-achievement-row">
+                  <span className="landing-resume-kicker">Impact</span>
+                  <strong>+34% activation</strong>
+                  <span>across redesigned onboarding</span>
+                </section>
               </div>
             </div>
-            {/* Floating elements */}
-            <div className="float-badge float-1">✓ ATS Optimized</div>
-            <div className="float-badge float-2">⭐ Expert Reviewed</div>
-            <div className="float-badge float-3">📄 PDF Ready</div>
+            <div className="float-badge float-1"><ResumeIcon name="finish" size={14} />ATS Optimized</div>
+            <div className="float-badge float-2"><ResumeIcon name="award" size={14} />Expert Reviewed</div>
+            <div className="float-badge float-3"><ResumeIcon name="pdf" size={14} />PDF Ready</div>
           </div>
         </div>
       </main>
@@ -113,19 +155,19 @@ export default function LandingPage() {
           <div className="steps-grid">
             <div className="step-card">
               <div className="step-card-number">1</div>
-              <div className="step-card-icon">📝</div>
+              <div className="step-card-icon"><ResumeIcon name="template" size={30} /></div>
               <h3>Select a Template</h3>
               <p>Choose from our professionally designed templates that fit your style and industry.</p>
             </div>
             <div className="step-card">
               <div className="step-card-number">2</div>
-              <div className="step-card-icon">✨</div>
+              <div className="step-card-icon"><ResumeIcon name="sparkle" size={30} /></div>
               <h3>Fill in Your Details</h3>
               <p>Our guided builder walks you through each section with expert suggestions and AI assistance.</p>
             </div>
             <div className="step-card">
               <div className="step-card-number">3</div>
-              <div className="step-card-icon">🚀</div>
+              <div className="step-card-icon"><ResumeIcon name="download" size={30} /></div>
               <h3>Download & Apply</h3>
               <p>Download your polished resume as PDF, print it, or email it directly to employers.</p>
             </div>
@@ -139,32 +181,32 @@ export default function LandingPage() {
           <h2 className="section-title">Why Choose Our Resume Builder?</h2>
           <div className="features-grid">
             <div className="feature-card">
-              <div className="feature-icon">🎨</div>
+              <div className="feature-icon"><ResumeIcon name="design" size={28} /></div>
               <h3>Beautiful Templates</h3>
-              <p>6 professionally designed templates with customizable colors and fonts.</p>
+              <p>A growing collection of professionally designed templates with customizable colors and fonts.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">🤖</div>
+              <div className="feature-icon"><ResumeIcon name="sparkle" size={28} /></div>
               <h3>AI-Powered Suggestions</h3>
               <p>Get expert-recommended bullet points and summaries tailored to your job title.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">👁️</div>
+              <div className="feature-icon"><ResumeIcon name="preview" size={28} /></div>
               <h3>Live Preview</h3>
               <p>See your resume update in real-time as you type. No surprises.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">📱</div>
+              <div className="feature-icon"><ResumeIcon name="phone" size={28} /></div>
               <h3>Mobile Friendly</h3>
               <p>Build your resume on any device — desktop, tablet, or phone.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">🔒</div>
+              <div className="feature-icon"><ResumeIcon name="shield" size={28} /></div>
               <h3>100% Private</h3>
               <p>Your data stays on your device. No account required, no data sent to servers.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">💰</div>
+              <div className="feature-icon"><ResumeIcon name="finish" size={28} /></div>
               <h3>Completely Free</h3>
               <p>No hidden fees, no watermarks, no premium tiers. Everything is free.</p>
             </div>
@@ -235,11 +277,11 @@ export default function LandingPage() {
             Get Started — It's Free
           </Link>
           <div className="cta-links">
-            <Link to="/examples" className="cta-link">📋 Browse Examples</Link>
-            <Link to="/cover-letter" className="cta-link">✉️ Cover Letter</Link>
-            <Link to="/compare" className="cta-link">🔀 Compare Templates</Link>
-            <Link to="/career" className="cta-link">🎯 Career Center</Link>
-            <Link to="/dashboard" className="cta-link">📂 My Resumes</Link>
+            <Link to="/examples" className="cta-link"><ResumeIcon name="document" size={16} />Browse Examples</Link>
+            <Link to="/cover-letter" className="cta-link"><ResumeIcon name="email" size={16} />Cover Letter</Link>
+            <Link to="/compare" className="cta-link"><ResumeIcon name="compare" size={16} />Compare Templates</Link>
+            <Link to="/career" className="cta-link"><ResumeIcon name="award" size={16} />Career Center</Link>
+            <Link to="/dashboard" className="cta-link"><ResumeIcon name="template" size={16} />My Resumes</Link>
           </div>
         </div>
       </section>

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RESUME_EXAMPLES, EXAMPLE_CATEGORIES } from '../../data/examples';
 import { useResume } from '../../context/ResumeContext';
-import { useTheme } from '../../hooks/useTheme';
 import Navbar from '../../components/Navbar';
+import ResumeIcon from '../../components/ResumeIcon';
 import './Examples.css';
 
 export default function Examples() {
@@ -55,7 +55,7 @@ export default function Examples() {
         <div className="examples-grid">
           {filtered.map(example => (
             <div key={example.id} className="example-card" onClick={() => setSelectedExample(example)}>
-              <div className="example-card-icon">{example.icon}</div>
+              <div className="example-card-icon"><ResumeIcon name="document" size={30} /></div>
               <h3 className="example-card-title">{example.title}</h3>
               <span className="example-card-category">{example.category}</span>
               <p className="example-card-summary">{example.summary}</p>
@@ -79,9 +79,9 @@ export default function Examples() {
       {selectedExample && (
         <div className="example-modal-backdrop" onClick={() => setSelectedExample(null)}>
           <div className="example-modal" onClick={e => e.stopPropagation()}>
-            <button className="example-modal-close" onClick={() => setSelectedExample(null)}>✕</button>
+            <button className="example-modal-close" onClick={() => setSelectedExample(null)} aria-label="Close example preview" title="Close example preview"><ResumeIcon name="close" size={20} /></button>
             <div className="example-modal-header">
-              <span className="example-modal-icon">{selectedExample.icon}</span>
+              <span className="example-modal-icon"><ResumeIcon name="document" size={30} /></span>
               <div>
                 <h2>{selectedExample.title}</h2>
                 <span className="example-card-category">{selectedExample.category}</span>
@@ -116,7 +116,7 @@ export default function Examples() {
 
             <div className="example-modal-footer">
               <button className="btn btn-primary" onClick={() => handleUseTemplate(selectedExample)}>
-                Use This Template →
+                Use This Template <ResumeIcon name="arrowLeft" size={16} style={{ transform: 'rotate(180deg)' }} />
               </button>
               <button className="btn btn-ghost" onClick={() => setSelectedExample(null)}>Close</button>
             </div>

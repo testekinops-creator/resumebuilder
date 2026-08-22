@@ -108,11 +108,17 @@
 }
 
 .career-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
 }
 
 .career-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--font-size-sm);
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
@@ -127,6 +133,9 @@
 }
 
 .career-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
   color: var(--color-primary);
@@ -177,6 +186,9 @@
 }
 
 .career-article-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
 }

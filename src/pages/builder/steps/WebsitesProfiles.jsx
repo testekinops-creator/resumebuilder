@@ -1,6 +1,8 @@
 import { useResume } from '../../../context/ResumeContext';
 import { isValidURL } from '../../../utils/sanitize';
 import StepNavigation from '../../../components/StepNavigation';
+import { getOptionalSectionPath } from '../../../utils/optionalSections';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function WebsitesProfiles() {
   const { state, dispatch } = useResume();
@@ -18,11 +20,7 @@ export default function WebsitesProfiles() {
     dispatch({ type: 'DELETE_WEBSITE', payload: id });
   };
 
-  const getNextPath = () => {
-    const selected = state.extraSections.selected || [];
-    if (selected.includes('certifications')) return '/builder/certifications';
-    return '/builder/smart-apply';
-  };
+  const selected = state.extraSections.selected || [];
 
   return (
     <div className="step-page">
@@ -32,7 +30,7 @@ export default function WebsitesProfiles() {
       </p>
 
       <div className="callout callout-tip" style={{ marginBottom: 'var(--space-6)' }}>
-        <span style={{ fontSize: '1.5rem' }}>💡</span>
+        <ResumeIcon name="info" size={24} />
         <div>
           <strong>Pro Tip:</strong> A LinkedIn profile is viewed by 87% of recruiters.
           Make sure yours is up to date!
@@ -40,7 +38,7 @@ export default function WebsitesProfiles() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        {websites.map((site, index) => (
+        {websites.map(site => (
           <div key={site.id} style={{
             padding: 'var(--space-4)', border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-lg)', background: 'var(--color-surface)',
@@ -52,10 +50,10 @@ export default function WebsitesProfiles() {
                   <input className={`form-input ${site.url && !isValidURL(site.url) ? 'error' : site.url && isValidURL(site.url) ? 'success' : ''}`}
                     type="url" placeholder="https://linkedin.com/in/yourname"
                     value={site.url} onChange={e => updateWebsite(site.id, 'url', e.target.value)} />
-                  {site.url && isValidURL(site.url) && <span className="validation-icon valid">✓</span>}
+                  {site.url && isValidURL(site.url) && <span className="validation-icon valid"><ResumeIcon name="finish" size={15} /></span>}
                 </div>
               </div>
-              <button className="entry-action-btn delete" onClick={() => deleteWebsite(site.id)} title="Remove">✕</button>
+              <button className="entry-action-btn delete" onClick={() => deleteWebsite(site.id)} title="Remove" aria-label="Remove link"><ResumeIcon name="delete" size={17} /></button>
             </div>
             <label className="form-checkbox-group">
               <input type="checkbox" className="form-checkbox"
@@ -68,12 +66,12 @@ export default function WebsitesProfiles() {
       </div>
 
       <button className="add-another-btn" onClick={addWebsite} style={{ marginTop: 'var(--space-4)' }}>
-        + Add another link
+        <ResumeIcon name="add" size={18} />Add another link
       </button>
 
       <StepNavigation
-        backPath="/builder/personal-details"
-        nextPath={getNextPath()}
+        backPath={getOptionalSectionPath(selected, 'websites', 'back')}
+        nextPath={getOptionalSectionPath(selected, 'websites')}
         nextLabel="Next"
       />
     </div>

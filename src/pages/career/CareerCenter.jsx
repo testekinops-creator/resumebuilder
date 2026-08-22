@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import Navbar from '../../components/Navbar';
+import ResumeIcon from '../../components/ResumeIcon';
 import './CareerCenter.css';
 
 const ARTICLES = [
   {
     id: 'resume-format',
     category: 'Resume Tips',
-    icon: '📄',
+    icon: 'document',
     title: 'How to Choose the Right Resume Format in 2026',
     readTime: '5 min',
     content: `
@@ -39,7 +40,7 @@ Most ATS (Applicant Tracking Systems) parse chronological formats best. When in 
   {
     id: 'ats-keywords',
     category: 'ATS',
-    icon: '🤖',
+    icon: 'sparkle',
     title: 'Beat the ATS: Keyword Optimization Guide',
     readTime: '7 min',
     content: `
@@ -78,7 +79,7 @@ An Applicant Tracking System (ATS) is software used by 98% of Fortune 500 compan
   {
     id: 'cover-letter-tips',
     category: 'Cover Letters',
-    icon: '✉️',
+    icon: 'email',
     title: '5 Cover Letter Mistakes That Cost You Interviews',
     readTime: '4 min',
     content: `
@@ -109,7 +110,7 @@ An Applicant Tracking System (ATS) is software used by 98% of Fortune 500 compan
   {
     id: 'interview-prep',
     category: 'Interviews',
-    icon: '🎯',
+    icon: 'award',
     title: 'The STAR Method: Answer Any Interview Question',
     readTime: '6 min',
     content: `
@@ -148,7 +149,7 @@ Quantify the outcome.
   {
     id: 'salary-negotiation',
     category: 'Career Growth',
-    icon: '💰',
+    icon: 'finish',
     title: 'Salary Negotiation: How to Get Paid What You Deserve',
     readTime: '5 min',
     content: `
@@ -191,7 +192,7 @@ If salary is firm, negotiate:
   {
     id: 'linkedin-profile',
     category: 'Personal Branding',
-    icon: '🔗',
+    icon: 'link',
     title: 'Optimize Your LinkedIn Profile for Recruiters',
     readTime: '5 min',
     content: `
@@ -268,15 +269,15 @@ export default function CareerCenter() {
           /* Article Reader */
           <div className="career-reader">
             <button className="career-back-btn" onClick={() => setSelectedArticle(null)}>
-              ← Back to Articles
+              <ResumeIcon name="arrowLeft" size={16} />Back to Articles
             </button>
             <article className="career-article">
               <div className="career-article-header">
-                <span className="career-article-icon">{selectedArticle.icon}</span>
+                <span className="career-article-icon"><ResumeIcon name={selectedArticle.icon} size={30} /></span>
                 <div>
                   <span className="career-article-cat">{selectedArticle.category}</span>
                   <h2>{selectedArticle.title}</h2>
-                  <span className="career-article-meta">📖 {selectedArticle.readTime} read</span>
+                  <span className="career-article-meta"><ResumeIcon name="summary" size={15} />{selectedArticle.readTime} read</span>
                 </div>
               </div>
               <div className="career-article-body" dangerouslySetInnerHTML={{
@@ -297,11 +298,11 @@ export default function CareerCenter() {
           <div className="career-grid">
             {filtered.map(article => (
               <div key={article.id} className="career-card" onClick={() => setSelectedArticle(article)}>
-                <div className="career-card-icon">{article.icon}</div>
+                <div className="career-card-icon"><ResumeIcon name={article.icon} size={30} /></div>
                 <span className="career-card-cat">{article.category}</span>
                 <h3 className="career-card-title">{article.title}</h3>
-                <span className="career-card-meta">📖 {article.readTime} read</span>
-                <span className="career-card-cta">Read Article →</span>
+                <span className="career-card-meta"><ResumeIcon name="summary" size={15} />{article.readTime} read</span>
+                <span className="career-card-cta">Read Article <ResumeIcon name="arrowLeft" size={15} style={{ transform: 'rotate(180deg)' }} /></span>
               </div>
             ))}
           </div>

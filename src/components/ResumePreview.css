@@ -1,11 +1,16 @@
 .preview-container {
   position: sticky;
   top: var(--space-6);
+  width: calc(var(--resume-page-width, 210mm) * var(--preview-scale, 0.285));
+  height: calc(var(--preview-page-height, 1123px) * var(--preview-scale, 0.285));
+  min-height: calc(var(--resume-page-min-height, 297mm) * var(--preview-scale, 0.285));
+  flex-shrink: 0;
 }
 
 .preview-page {
-  width: 595px;
-  min-height: 842px;
+  position: relative;
+  width: var(--resume-page-width, 210mm);
+  min-height: var(--resume-page-min-height, 297mm);
   background: white;
   box-shadow: var(--shadow-xl);
   border-radius: var(--radius-sm);
@@ -14,8 +19,19 @@
   font-size: 11px;
   line-height: 1.4;
   color: #333;
-  overflow: hidden;
+  overflow: visible;
   animation: fadeIn 0.4s ease-out;
+}
+
+/* An overlay border leaves the established template spacing untouched. */
+.preview-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  border: var(--resume-page-border-width, 0px) solid var(--resume-page-border-color, transparent);
+  pointer-events: none;
 }
 
 @keyframes fadeIn {
@@ -93,7 +109,7 @@
 /* Two-column layout (Creative template) */
 .preview-two-col {
   display: flex;
-  min-height: 842px;
+  min-height: var(--resume-page-min-height, 297mm);
 }
 
 .preview-sidebar {
@@ -141,6 +157,49 @@
   padding-left: 8px;
   background: rgba(16, 185, 129, 0.05);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Finalize-page controls are attached to the existing template section nodes,
+   so every template gets the same selection treatment without altering its
+   print content or layout. */
+.tmpl-section[role="button"] {
+  cursor: pointer;
+}
+
+.tmpl-section.resume-section-selected {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #0EA5E9;
+  outline-offset: 4px;
+  border-radius: 4px;
+  background-color: rgba(14, 165, 233, 0.07);
+}
+
+.tmpl-section.resume-section-hovered:not(.resume-section-selected) {
+  position: relative;
+  z-index: 1;
+  outline: 1px solid #8B5CF6;
+  outline-offset: 3px;
+  border-radius: 4px;
+  background-color: rgba(139, 92, 246, 0.08);
+}
+
+.tmpl-section.resume-section-selected.resume-section-hovered {
+  outline-color: #0369A1;
+  background-color: rgba(14, 165, 233, 0.12);
+}
+
+.tmpl-section.resume-section-selected:focus-visible {
+  outline: 3px solid #0EA5E9;
+}
+
+.tmpl-section.resume-section-recently-updated {
+  animation: resumeSectionPulse 1.8s ease-out;
+}
+
+@keyframes resumeSectionPulse {
+  0%, 45% { outline-color: #10B981; background-color: rgba(16, 185, 129, 0.16); }
+  100% { outline-color: #0EA5E9; background-color: rgba(14, 165, 233, 0.07); }
 }
 
 .preview-section-title {
@@ -248,7 +307,7 @@
 
 /* Mobile: hidden by default, shown with toggle */
 @media (max-width: 1024px) {
-  .preview-container {
+  .preview-container:not(.template-thumbnail-resume):not(.fe-template-thumbnail):not(.resume-viewer-preview) {
     display: none;
   }
 
@@ -264,7 +323,21 @@
   }
 
   .preview-container.mobile-visible .preview-page {
-    transform: scale(0.6);
+    transform: scale(0.45);
     transform-origin: center center;
+  }
+}
+
+@media print {
+  .tmpl-section.resume-section-selected,
+  .tmpl-section.resume-section-hovered,
+  .tmpl-section.resume-section-recently-updated {
+    outline: none !important;
+    background: transparent !important;
+  }
+
+  .preview-page {
+    overflow: visible !important;
+    height: auto !important;
   }
 }

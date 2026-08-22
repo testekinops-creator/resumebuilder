@@ -1,7 +1,8 @@
-const CACHE_NAME = 'resume-builder-v1';
+const CACHE_NAME = 'resume-builder-v2';
+const APP_SCOPE = new URL(self.registration.scope).pathname;
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
+  APP_SCOPE,
+  `${APP_SCOPE}index.html`,
 ];
 
 self.addEventListener('install', (event) => {

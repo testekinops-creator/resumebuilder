@@ -1,10 +1,12 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import { sanitizeHTML } from '../../../utils/sanitize';
 import StepNavigation from '../../../components/StepNavigation';
+import ResumeIcon from '../../../components/ResumeIcon';
 
 export default function WorkHistorySummary() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state, dispatch } = useResume();
 
   const handleDelete = (id) => {
@@ -32,20 +34,22 @@ export default function WorkHistorySummary() {
                 {job.endDate ? ` - ${job.endDate}` : job.currentJob ? ' - Present' : ''}
               </div>
               {job.description && (
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 'var(--space-2)' }}
+                <div className="entry-description"
                   dangerouslySetInnerHTML={{ __html: sanitizeHTML(job.description) }} />
               )}
             </div>
             <div className="entry-actions">
-              <button type="button" className="entry-action-btn" title="Edit" onClick={() => navigate('/builder/work-editor')}>✏️</button>
-              <button type="button" className="entry-action-btn delete" title="Delete" onClick={(e) => { e.preventDefault(); handleDelete(job.id); }}>🗑️</button>
+              <button type="button" className="entry-action-btn" title="Edit" onClick={() => navigate('/builder/work-editor', {
+                state: { workId: job.id, returnTo: location.state?.returnTo, focusSection: location.state?.focusSection },
+              })} aria-label="Edit position"><ResumeIcon name="edit" size={17} /></button>
+              <button type="button" className="entry-action-btn delete" title="Delete" aria-label="Delete position" onClick={(e) => { e.preventDefault(); handleDelete(job.id); }}><ResumeIcon name="delete" size={17} /></button>
             </div>
           </div>
         ))}
       </div>
 
       <button type="button" className="add-another-btn" onClick={handleAddAnother} style={{ marginTop: 'var(--space-4)' }}>
-        + Add another position
+        <ResumeIcon name="add" size={18} />Add another position
       </button>
 
       <StepNavigation

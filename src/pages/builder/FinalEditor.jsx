@@ -1,93 +1,207 @@
-import { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
-import { TEMPLATES, COLOR_SCHEMES, FONT_FAMILIES } from '../../data/templates';
+import { COLOR_SCHEMES, FONT_FAMILIES, TEMPLATES } from '../../data/templates';
+import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
-import { generatePDF, printResume, emailResume } from '../../utils/pdfGenerator';
-import { exportResumeJSON } from '../../utils/storage';
+import { getOrderedSectionIds, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
+import { getResumeQualityReview } from '../../utils/resumeQuality';
+import { generateDOCX, generatePDF, printResume, emailResume } from '../../utils/pdfGenerator';
+import {
+  dismissFinalizeWelcome,
+  exportResumeJSON,
+  isFinalizeWelcomeDismissed,
+} from '../../utils/storage';
 import AuthModal from '../../components/AuthModal';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { DndContext, DragOverlay, KeyboardSensor, closestCenter, PointerSensor, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import ResumeIcon from '../../components/ResumeIcon';
+import { useTheme } from '../../hooks/useTheme';
 import './FinalEditor.css';
 
+const PAGE_BORDER_OPTIONS = [
+  { id: 'none', label: 'None', description: 'No outer page border' },
+  { id: 'thin', label: 'Thin', description: '0.75pt accent border' },
+  { id: 'medium', label: 'Medium', description: '1.5pt accent border' },
+  { id: 'thick', label: 'Thick', description: '3pt accent border' },
+];
+
+const PRINT_BORDER_WIDTHS = { none: '0px', thin: '1px', medium: '2px', thick: '4px' };
+
 export default function FinalEditor() {
+  // Finalize can be opened directly, outside a page that exposes the theme
+  // switcher. Initializing the hook here keeps the panel and live thumbnails
+  // in the saved light/dark theme after a reload.
+  useTheme();
   const { state, dispatch, completeness, canUndo, canRedo } = useResume();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const design = state.design;
+  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
+  const printAccentColor = design.colorScheme || selectedTemplate?.defaultColor || '#6B21A8';
+  const printPageBorder = PRINT_BORDER_WIDTHS[design.pageBorder] ?? PRINT_BORDER_WIDTHS.none;
   const [activeTab, setActiveTab] = useState('templates');
   const [zoom, setZoom] = useState(100);
-  const [resumeName, setResumeName] = useState(state.meta.name || 'My Resume');
+  const [resumeName, setResumeName] = useState(state.meta.name ?? 'My Resume');
   const [showMenu, setShowMenu] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(
+    () => !isFinalizeWelcomeDismissed(state.meta?.id),
+  );
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [generating, setGenerating] = useState('');
+  const [selectedSection, setSelectedSection] = useState(() => location.state?.focusSection || '');
+  const [hoveredSection, setHoveredSection] = useState('');
+  const [focusSection, setFocusSection] = useState(() => location.state?.focusSection || '');
+  const [focusRequest, setFocusRequest] = useState(0);
+  const [sectionPendingDelete, setSectionPendingDelete] = useState('');
+  const [sectionPendingRename, setSectionPendingRename] = useState('');
+  const [renameValue, setRenameValue] = useState('');
+  const [showSectionReorder, setShowSectionReorder] = useState(false);
+  const [pageCount, setPageCount] = useState(1);
   const previewRef = useRef(null);
+  const sectionsPanelRef = useRef(null);
 
-  const handleDownload = async () => {
-    await generatePDF();
+  const selectPreviewSection = useCallback((sectionId) => {
+    setSelectedSection(sectionId);
+    setActiveTab('sections');
+  }, []);
+
+  const focusPreviewSection = useCallback((sectionId) => {
+    setSelectedSection(sectionId);
+    setFocusSection(sectionId);
+    setFocusRequest(request => request + 1);
+  }, []);
+
+  useEffect(() => {
+    const returnedSection = location.state?.focusSection;
+    if (!returnedSection) return undefined;
+
+    focusPreviewSection(returnedSection);
+    const clearFocus = window.setTimeout(() => setFocusSection(''), 1900);
+    return () => window.clearTimeout(clearFocus);
+  }, [focusPreviewSection, location.key, location.state?.focusSection]);
+
+  const handleDownload = async (format = 'pdf') => {
+    const exportFormat = typeof format === 'string' ? format : 'pdf';
+    setGenerating(exportFormat);
+    try {
+      if (exportFormat === 'docx') {
+        await generateDOCX({ state, resumeName });
+      } else {
+        await generatePDF({ state, resumeName });
+      }
+    } catch (error) {
+      console.error(`Unable to generate ${exportFormat}:`, error);
+      window.alert(error?.message || `Unable to generate the ${exportFormat.toUpperCase()}. Please try again.`);
+    } finally {
+      setGenerating('');
+    }
   };
 
-  const handlePrint = () => {
-    printResume();
+  const dismissWelcome = () => {
+    dismissFinalizeWelcome(state.meta?.id);
+    setShowWelcome(false);
   };
 
-  const handleEmail = () => emailResume(resumeName);
+  const selectTemplate = (template) => {
+    dispatch({ type: 'SET_META', payload: { templateId: template.id } });
+    dispatch({ type: 'SET_DESIGN', payload: { colorScheme: template.defaultColor } });
+  };
 
-  const handleNameChange = (e) => {
-    const name = e.target.value.slice(0, 50);
+  const handleNameChange = (event) => {
+    const name = event.target.value.slice(0, 50);
     setResumeName(name);
     dispatch({ type: 'SET_META', payload: { name } });
   };
 
-  const tabs = [
-    { id: 'templates', label: '🎨 Templates', icon: '🎨' },
-    { id: 'design', label: '⚙️ Design', icon: '⚙️' },
-    { id: 'sections', label: '➕ Sections', icon: '➕' },
-  ];
+  const selectedSectionName = selectedSection ? getSectionDisplayName(state, selectedSection) : '';
+  const reviewFindings = getResumeQualityReview(state);
 
+  const editSelectedSection = () => {
+    const route = getSectionEditRoute(state, selectedSection);
+    if (!route) return;
+    navigate(`/builder/${route}`, {
+      state: { returnTo: '/finalize', focusSection: selectedSection },
+    });
+  };
+
+  const requestRenameSelectedSection = () => {
+    if (!selectedSection) return;
+    setRenameValue(getSectionDisplayName(state, selectedSection));
+    setSectionPendingRename(selectedSection);
+  };
+
+  const saveSectionRename = (event) => {
+    event.preventDefault();
+    const nextTitle = renameValue.trim();
+    if (!nextTitle || !sectionPendingRename) return;
+
+    if (isCustomResumeSection(state, sectionPendingRename)) {
+      dispatch({ type: 'UPDATE_CUSTOM_SECTION', payload: { id: sectionPendingRename, title: nextTitle } });
+    } else {
+      dispatch({ type: 'SET_SECTION_TITLE', payload: { sectionId: sectionPendingRename, title: nextTitle } });
+    }
+
+    focusPreviewSection(sectionPendingRename);
+    setSectionPendingRename('');
+  };
+
+  const confirmSectionDelete = () => {
+    if (!sectionPendingDelete) return;
+    dispatch({
+      type: isCustomResumeSection(state, sectionPendingDelete) ? 'REMOVE_CUSTOM_SECTION' : 'REMOVE_SECTION',
+      payload: sectionPendingDelete,
+    });
+    setSelectedSection('');
+    setFocusSection('');
+    setSectionPendingDelete('');
+  };
+
+  const tabs = [
+    { id: 'templates', label: 'Templates', icon: 'template' },
+    { id: 'design', label: 'Design', icon: 'design' },
+    { id: 'sections', label: 'Sections', icon: 'sections' },
+  ];
   const scoreColor = completeness >= 80 ? 'var(--color-success)' : completeness >= 50 ? 'var(--color-warning)' : 'var(--color-error)';
 
   return (
-    <div className="final-editor">
-      {/* Top Bar */}
+    <div className="final-editor" style={{
+      '--print-page-border-width': printPageBorder,
+      '--print-page-border-color': printAccentColor,
+    }}>
       <header className="fe-topbar">
         <div className="fe-topbar-left">
-          <Link to="/builder/smart-apply" className="fe-back-link">← Back</Link>
+          <Link to="/builder/smart-apply" className="fe-back-link"><ResumeIcon name="arrowLeft" size={16} />Back</Link>
           <input className="fe-resume-name" type="text" value={resumeName}
             onChange={handleNameChange} maxLength={50} aria-label="Resume name" />
           <div className="fe-menu-wrapper">
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowMenu(!showMenu)}>
-              ⋯ More
-            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowMenu(!showMenu)}>More</button>
             {showMenu && (
               <div className="fe-dropdown">
-                <button onClick={() => { exportResumeJSON(state); setShowMenu(false); }}>💾 Export JSON Backup</button>
-                <button onClick={() => { dispatch({ type: 'RESET' }); setShowMenu(false); }}>🗑️ Start New Resume</button>
+                <button onClick={() => { exportResumeJSON(state); setShowMenu(false); }}><ResumeIcon name="save" size={16} />Export JSON Backup</button>
+                <button onClick={() => { dispatch({ type: 'RESET' }); setResumeName('My Resume'); setShowMenu(false); }}><ResumeIcon name="delete" size={16} />Start New Resume</button>
               </div>
             )}
           </div>
         </div>
         <div className="fe-topbar-center">
-          <button className="btn btn-icon btn-ghost" disabled={!canUndo} onClick={() => dispatch({ type: 'UNDO' })} title="Undo">↩</button>
-          <button className="btn btn-icon btn-ghost" disabled={!canRedo} onClick={() => dispatch({ type: 'REDO' })} title="Redo">↪</button>
+          <button className="btn btn-icon btn-ghost" disabled={!canUndo} onClick={() => dispatch({ type: 'UNDO' })} title="Undo" aria-label="Undo"><ResumeIcon name="undo" /></button>
+          <button className="btn btn-icon btn-ghost" disabled={!canRedo} onClick={() => dispatch({ type: 'REDO' })} title="Redo" aria-label="Redo"><ResumeIcon name="redo" /></button>
           <span className="fe-divider" />
-          <button className="btn btn-icon btn-ghost" onClick={() => setZoom(z => Math.max(z - 10, 50))} title="Zoom out">−</button>
+          <button className="btn btn-icon btn-ghost" onClick={() => setZoom(value => Math.max(value - 10, 50))} title="Zoom out">−</button>
           <span className="fe-zoom">{zoom}%</span>
-          <button className="btn btn-icon btn-ghost" onClick={() => setZoom(z => Math.min(z + 10, 150))} title="Zoom in">+</button>
+          <button className="btn btn-icon btn-ghost" onClick={() => setZoom(value => Math.min(value + 10, 150))} title="Zoom in">+</button>
         </div>
-        <div className="fe-topbar-right">
-          <span className="fe-saved">✓ Saved</span>
-        </div>
+        <div className="fe-topbar-right"><span className="fe-saved"><ResumeIcon name="finish" size={15} />Saved</span></div>
       </header>
 
       <div className="fe-body">
-        {/* Left Tool Panel */}
-        <aside className="fe-tools">
+        <aside className="fe-tools" ref={sectionsPanelRef}>
           <div className="fe-tool-tabs">
             {tabs.map(tab => (
-              <button key={tab.id}
-                className={`fe-tool-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}>
-                {tab.label}
-              </button>
+              <button key={tab.id} className={`fe-tool-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}><ResumeIcon name={tab.icon} size={16} />{tab.label}</button>
             ))}
           </div>
 
@@ -98,28 +212,31 @@ export default function FinalEditor() {
                 <div className="fe-color-swatches">
                   {COLOR_SCHEMES.map(color => (
                     <button key={color.id}
-                      className={`fe-swatch ${state.design.colorScheme === color.value ? 'active' : ''}`}
+                      className={`fe-swatch ${design.colorScheme === color.value ? 'active' : ''}`}
                       style={{ backgroundColor: color.value, border: color.value === '#FFFFFF' ? '2px solid var(--color-border)' : 'none' }}
                       onClick={() => dispatch({ type: 'SET_DESIGN', payload: { colorScheme: color.value } })}
-                      title={color.label}
-                      aria-label={`Color ${color.label}`}
-                    />
+                      title={color.label} aria-label={`Color ${color.label}`} />
                   ))}
                 </div>
 
                 <h3 style={{ marginTop: 'var(--space-6)' }}>All templates</h3>
                 <div className="fe-template-grid">
                   {TEMPLATES.map(template => (
-                    <div key={template.id}
-                      className={`fe-template-thumb ${state.meta.templateId === template.id ? 'active' : ''}`}
-                      onClick={() => dispatch({ type: 'SET_META', payload: { templateId: template.id } })}>
-                      <div className="fe-thumb-preview" style={{ '--t-color': state.design.colorScheme || template.defaultColor }}>
-                        <div className="ftp-header" style={{ backgroundColor: state.design.colorScheme || template.defaultColor }}></div>
-                        <div className="ftp-body">
-                          <div className="ftp-line"></div>
-                          <div className="ftp-line short"></div>
-                          <div className="ftp-line"></div>
-                        </div>
+                    <div key={template.id} className={`fe-template-thumb ${state.meta.templateId === template.id ? 'active' : ''}`}
+                      onClick={() => selectTemplate(template)} role="button" tabIndex={0}
+                      onKeyDown={event => {
+                        if (!['Enter', ' '].includes(event.key)) return;
+                        event.preventDefault();
+                        selectTemplate(template);
+                      }}>
+                      <div className="fe-thumb-preview">
+                        <ResumePreview
+                          data={TEMPLATE_PREVIEW_DATA}
+                          templateId={template.id}
+                          accentColor={template.defaultColor}
+                          scale={0.15}
+                          className="fe-template-thumbnail"
+                        />
                       </div>
                       <span className="fe-thumb-name">{template.name}</span>
                     </div>
@@ -130,189 +247,683 @@ export default function FinalEditor() {
 
             {activeTab === 'design' && (
               <div className="fe-design-panel">
-                <h3>Font Family</h3>
-                <select className="form-input form-select" value={state.design.fontFamily}
-                  onChange={e => dispatch({ type: 'SET_DESIGN', payload: { fontFamily: e.target.value } })}>
-                  {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
+                <h3>Accent Color</h3>
+                <label className="fe-color-control">
+                  <input type="color" value={design.colorScheme || '#6B21A8'}
+                    onChange={event => dispatch({ type: 'SET_DESIGN', payload: { colorScheme: event.target.value } })}
+                    aria-label="Custom accent color" />
+                  <span>Choose a custom color</span>
+                </label>
+
+                <h3 style={{ marginTop: 'var(--space-6)' }}>Font Family</h3>
+                <select className="form-input form-select" value={design.fontFamily}
+                  onChange={event => dispatch({ type: 'SET_DESIGN', payload: { fontFamily: event.target.value } })}>
+                  {FONT_FAMILIES.map(font => <option key={font} value={font}>{font}</option>)}
                 </select>
 
                 <h3 style={{ marginTop: 'var(--space-6)' }}>Font Size</h3>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <div className="fe-font-size-buttons">
                   {['small', 'normal', 'large'].map(size => (
-                    <button key={size}
-                      className={`btn btn-sm ${state.design.fontStyle === size ? 'btn-accent' : 'btn-outline'}`}
-                      onClick={() => dispatch({ type: 'SET_DESIGN', payload: { fontStyle: size } })}
-                      style={{ borderRadius: 'var(--radius-md)', flex: 1, textTransform: 'uppercase', fontSize: 'var(--font-size-xs)' }}>
-                      {size[0].toUpperCase()}
+                    <button key={size} className={`btn btn-sm ${design.fontStyle === size ? 'btn-accent' : 'btn-outline'}`}
+                      onClick={() => dispatch({ type: 'SET_DESIGN', payload: { fontStyle: size } })}>{size[0].toUpperCase()}</button>
+                  ))}
+                </div>
+
+                <h3 className="fe-border-title" style={{ marginTop: 'var(--space-6)' }}>
+                  Page Border <span className="fe-premium-badge">Premium</span>
+                </h3>
+                <p className="fe-border-description">Uses your accent color in the preview and PDF.</p>
+                <div className="fe-page-border-options" role="group" aria-label="Page Border">
+                  {PAGE_BORDER_OPTIONS.map(option => (
+                    <button key={option.id} type="button"
+                      className={`fe-page-border-option ${design.pageBorder === option.id ? 'active' : ''}`}
+                      onClick={() => dispatch({ type: 'SET_DESIGN', payload: { pageBorder: option.id } })}
+                      aria-pressed={design.pageBorder === option.id}
+                      title={option.description}>
+                      {option.label}
                     </button>
                   ))}
                 </div>
 
-                <h3 style={{ marginTop: 'var(--space-6)' }}>Section Spacing</h3>
-                <input type="range" min="0" max="100" value={state.design.sectionSpacing}
-                  onChange={e => dispatch({ type: 'SET_DESIGN', payload: { sectionSpacing: +e.target.value } })}
-                  style={{ width: '100%' }} />
+                <DesignRange label="Page Margins" value={design.pageMargin ?? 32} min="20" max="48" unit="px"
+                  onChange={value => dispatch({ type: 'SET_DESIGN', payload: { pageMargin: value } })} />
+                <DesignRange label="Section Spacing" value={design.sectionSpacing ?? 50}
+                  onChange={value => dispatch({ type: 'SET_DESIGN', payload: { sectionSpacing: value } })} />
+                <DesignRange label="Paragraph Spacing" value={design.paragraphSpacing ?? 50}
+                  onChange={value => dispatch({ type: 'SET_DESIGN', payload: { paragraphSpacing: value } })} />
+                <DesignRange label="Line Spacing" value={design.lineSpacing ?? 50}
+                  onChange={value => dispatch({ type: 'SET_DESIGN', payload: { lineSpacing: value } })} />
+                <DesignRange label="Heading Spacing" value={design.headingLetterSpacing ?? 0.5} min="-1" max="3" step="0.25" unit="px"
+                  onChange={value => dispatch({ type: 'SET_DESIGN', payload: { headingLetterSpacing: value } })} />
 
-                <h3 style={{ marginTop: 'var(--space-4)' }}>Paragraph Spacing</h3>
-                <input type="range" min="0" max="100" value={state.design.paragraphSpacing}
-                  onChange={e => dispatch({ type: 'SET_DESIGN', payload: { paragraphSpacing: +e.target.value } })}
-                  style={{ width: '100%' }} />
-
-                <h3 style={{ marginTop: 'var(--space-4)' }}>Line Spacing</h3>
-                <input type="range" min="0" max="100" value={state.design.lineSpacing}
-                  onChange={e => dispatch({ type: 'SET_DESIGN', payload: { lineSpacing: +e.target.value } })}
-                  style={{ width: '100%' }} />
-
-                <button className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--space-6)', width: '100%' }}
-                  onClick={() => dispatch({ type: 'SET_DESIGN', payload: { fontFamily: 'Inter', fontStyle: 'normal', sectionSpacing: 50, paragraphSpacing: 50, lineSpacing: 50 } })}>
-                  ↺ Reset to Default
-                </button>
+                <button className="btn btn-ghost btn-sm fe-reset-design" onClick={() => dispatch({ type: 'SET_DESIGN', payload: {
+                  colorScheme: '#6B21A8', fontFamily: 'Inter', fontStyle: 'normal', pageMargin: 32,
+                  sectionSpacing: 50, paragraphSpacing: 50, lineSpacing: 50, headingLetterSpacing: 0.5, pageBorder: 'none',
+                } })}><ResumeIcon name="undo" size={16} />Reset to Default</button>
               </div>
             )}
 
             {activeTab === 'sections' && (
-              <SectionsPanel state={state} dispatch={dispatch} />
+              <SectionsPanel
+                state={state}
+                dispatch={dispatch}
+                selectedSection={selectedSection}
+                hoveredSection={hoveredSection}
+                onSectionSelect={focusPreviewSection}
+                onSectionHover={setHoveredSection}
+                scrollContainerRef={sectionsPanelRef}
+              />
             )}
           </div>
         </aside>
 
-        {/* Main Resume Area */}
         <main className="fe-main">
-          <div className="fe-resume-wrapper" ref={previewRef} style={{ transform: `scale(${zoom / 100})` }}>
-            <ResumePreview scale={1} />
+          {selectedSection && (
+            <SectionQuickActions
+              sectionName={selectedSectionName}
+              canEdit={Boolean(getSectionEditRoute(state, selectedSection))}
+              onEdit={editSelectedSection}
+              onDelete={() => setSectionPendingDelete(selectedSection)}
+              onRename={requestRenameSelectedSection}
+              onReorder={() => { setActiveTab('sections'); setShowSectionReorder(true); }}
+            />
+          )}
+          <div className="fe-preview-scroll" aria-label="Resume preview">
+            <div className="fe-resume-wrapper" ref={previewRef} style={{ '--editor-scale': zoom / 100, transform: `scale(${zoom / 100})` }}>
+              <ResumePreview
+                scale={1}
+                interactive
+                selectedSection={selectedSection}
+                hoveredSection={hoveredSection}
+                focusSection={focusSection}
+                focusRequest={focusRequest}
+                onSectionSelect={selectPreviewSection}
+                onSectionHover={setHoveredSection}
+                onPageCountChange={setPageCount}
+              />
+            </div>
           </div>
         </main>
 
-        {/* Right Actions */}
         <aside className="fe-actions">
-          {/* Resume Score */}
           <div className="fe-score-card">
             <div className="fe-score-circle" style={{ '--score-color': scoreColor, '--score-pct': completeness }}>
               <svg viewBox="0 0 80 80">
                 <circle cx="40" cy="40" r="35" fill="none" stroke="var(--color-border)" strokeWidth="5" />
                 <circle cx="40" cy="40" r="35" fill="none" stroke={scoreColor} strokeWidth="5"
-                  strokeDasharray={`${completeness * 2.2} 220`} strokeLinecap="round"
-                  transform="rotate(-90, 40, 40)" style={{ transition: 'stroke-dasharray 0.5s ease' }} />
+                  strokeDasharray={`${completeness * 2.2} 220`} strokeLinecap="round" transform="rotate(-90, 40, 40)" />
               </svg>
               <span className="fe-score-value">{completeness}</span>
             </div>
-            <span className="fe-score-label">Resume Score</span>
+            <span className="fe-score-label">Profile completion</span>
           </div>
-
+          <div className="fe-page-count" aria-live="polite">
+            <ResumeIcon name="document" size={16} />
+            <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'} in preview</span>
+          </div>
+          <ResumeReview findings={reviewFindings} />
           <div className="fe-action-buttons">
-            <button className="btn btn-primary" onClick={handleDownload} disabled={generating} style={{ width: '100%' }}>
-              {generating ? '⏳ Generating...' : '📥 Download PDF'}
+            <button className="btn btn-outline-dark fe-action-button fe-export-button" onClick={() => handleDownload('docx')} disabled={Boolean(generating)} aria-label="Download DOCX" title="Download DOCX">
+              <ResumeIcon name="download" size={18} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
             </button>
-            <button className="btn btn-outline-dark" onClick={handlePrint} style={{ width: '100%' }}>
-              🖨️ Print
-            </button>
-            <button className="btn btn-outline-dark" onClick={handleEmail} style={{ width: '100%' }}>
-              ✉️ Email
-            </button>
-            <button className="btn btn-ghost" onClick={() => setShowAuthModal(true)} style={{ width: '100%', justifyContent: 'center' }}>
-              ✅ Finish
-            </button>
+            <button className="btn btn-primary fe-action-button fe-export-button" onClick={handleDownload} disabled={Boolean(generating)} aria-label="Download PDF" title="Download a vector PDF of your resume"><ResumeIcon name="download" size={18} />{generating ? 'Preparing...' : 'PDF'}</button>
+            <div className="fe-utility-actions" aria-label="Other resume actions">
+              <button className="btn btn-outline-dark fe-action-button" onClick={printResume}><ResumeIcon name="print" size={17} />Print</button>
+              <button className="btn btn-outline-dark fe-action-button" onClick={() => emailResume(resumeName)}><ResumeIcon name="email" size={17} />Email</button>
+            </div>
+            <button className="btn btn-ghost fe-action-button fe-finish-button" onClick={() => setShowAuthModal(true)}><ResumeIcon name="finish" size={17} />Finish</button>
           </div>
         </aside>
       </div>
 
-      {/* Loading overlay */}
-      {generating && (
-        <div className="loading-overlay">
-          <div className="spinner" />
-          <p>Generating your PDF...</p>
+      {generating && <div className="loading-overlay" aria-live="polite"><div className="spinner" /><p>Preparing your {generating.toUpperCase()}...</p></div>}
+      {sectionPendingDelete && (
+        <SectionDialog
+          title={`Delete ${getSectionDisplayName(state, sectionPendingDelete)}?`}
+          description="This removes the complete section from your resume. You can restore it with Undo."
+          confirmLabel="Delete"
+          onCancel={() => setSectionPendingDelete('')}
+          onConfirm={confirmSectionDelete}
+        />
+      )}
+      {sectionPendingRename && (
+        <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={() => setSectionPendingRename('')}>
+          <form className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-section-title" onSubmit={saveSectionRename} onMouseDown={event => event.stopPropagation()}>
+            <h2 id="rename-section-title">Rename section</h2>
+            <p>Use a title that best describes this part of your resume.</p>
+            <label className="form-label" htmlFor="section-rename">Section title</label>
+            <input id="section-rename" className="form-input" value={renameValue} onChange={event => setRenameValue(event.target.value)} maxLength={60} autoFocus />
+            <div className="fe-section-dialog-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setSectionPendingRename('')}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={!renameValue.trim()}>Save name</button>
+            </div>
+          </form>
         </div>
       )}
-      {/* Welcome overlay */}
+      {showSectionReorder && (
+        <SectionReorderDialog
+          state={state}
+          dispatch={dispatch}
+          selectedSection={selectedSection}
+          hoveredSection={hoveredSection}
+          onSectionSelect={focusPreviewSection}
+          onSectionHover={setHoveredSection}
+          onClose={() => setShowSectionReorder(false)}
+        />
+      )}
       {showWelcome && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000 }} onClick={() => setShowWelcome(false)}>
-          <div className="mobile-preview-content" style={{ maxWidth: 500, padding: 'var(--space-6)', textAlign: 'center', background: 'white', borderRadius: 'var(--radius-lg)' }} onClick={e => e.stopPropagation()}>
-            <button className="fe-close-btn" onClick={() => setShowWelcome(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>×</button>
-            <h2 style={{ fontSize: 24, marginBottom: 'var(--space-2)' }}>Great work, {state.contact.firstName || 'there'}!</h2>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)' }}>Your resume is looking good. We're just one step away from finalizing it!</p>
-            <button className="btn btn-primary" onClick={() => setShowWelcome(false)} style={{ padding: '12px 32px', borderRadius: 30 }}>Got it</button>
+        <div className="mobile-preview-overlay" style={{ zIndex: 1000 }} onClick={dismissWelcome}>
+          <div className="mobile-preview-content fe-welcome-card" onClick={event => event.stopPropagation()}>
+            <button className="fe-close-btn" onClick={dismissWelcome} aria-label="Dismiss welcome message" title="Dismiss welcome message"><ResumeIcon name="close" size={20} /></button>
+            <h2>Great work, {state.contact.firstName || 'there'}!</h2>
+            <p>Your resume is looking good. We're just one step away from finalizing it!</p>
+            <button className="btn btn-primary" onClick={dismissWelcome}>Got it</button>
           </div>
         </div>
       )}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+    </div>
+  );
+}
 
-      {/* Auth Modal overlay */}
-      {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
+function ResumeReview({ findings }) {
+  const visibleFindings = findings.slice(0, 3);
+  return (
+    <section className="fe-resume-review" aria-labelledby="resume-review-title">
+      <div className="fe-resume-review-heading">
+        <h2 id="resume-review-title">Resume review</h2>
+        <span>{findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
+      </div>
+      {visibleFindings.length ? (
+        <ul>
+          {visibleFindings.map(finding => (
+            <li key={finding.id} className={`is-${finding.level}`}>
+              <strong>{finding.title}</strong>
+              <span>{finding.message}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Core resume details are present. Review each section for relevance before exporting.</p>
+      )}
+      {findings.length > visibleFindings.length && <p className="fe-resume-review-more">+{findings.length - visibleFindings.length} more helpful checks</p>}
+    </section>
+  );
+}
+
+function SectionQuickActions({ sectionName, canEdit, onEdit, onDelete, onRename, onReorder }) {
+  return (
+    <div className="fe-section-quick-actions" role="toolbar" aria-label={`Actions for ${sectionName}`}>
+      <span className="fe-section-selected-label">
+        <span className="fe-section-selected-prefix">Selected:</span>
+        <span className="fe-section-selected-name" title={sectionName}>{sectionName}</span>
+      </span>
+      <span className="fe-section-action-controls">
+        {canEdit && <button type="button" className="btn btn-sm btn-outline-dark" onClick={onEdit} title={`View or edit ${sectionName}`} aria-label={`View or edit ${sectionName}`}><ResumeIcon name="edit" size={16} /><span className="fe-quick-action-label">Edit</span></button>}
+        <button type="button" className="btn btn-sm btn-outline-dark" onClick={onRename} title="Rename section" aria-label={`Rename ${sectionName}`}><ResumeIcon name="rename" size={16} /><span className="fe-quick-action-label">Rename</span></button>
+        <button type="button" className="btn btn-sm btn-outline-dark" onClick={onReorder} title="Open section reorder controls" aria-label="Reorder resume sections"><ResumeIcon name="reorder" size={16} /><span className="fe-quick-action-label">Reorder</span></button>
+        <button type="button" className="btn btn-sm fe-section-delete-btn" onClick={onDelete} title={`Delete ${sectionName}`} aria-label={`Delete ${sectionName}`}><ResumeIcon name="delete" size={16} /></button>
+      </span>
+    </div>
+  );
+}
+
+function SectionDialog({ title, description, confirmLabel, onCancel, onConfirm }) {
+  return (
+    <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={onCancel}>
+      <div className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="section-dialog-title" onMouseDown={event => event.stopPropagation()}>
+        <h2 id="section-dialog-title">{title}</h2>
+        <p>{description}</p>
+        <div className="fe-section-dialog-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn fe-section-delete-btn" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DesignRange({ label, value, min = '0', max = '100', step = '1', unit = '%', onChange }) {
+  return (
+    <label className="fe-design-range">
+      <span>{label}<output>{value}{unit}</output></span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} />
+    </label>
+  );
+}
+
+const ADD_SECTION_OPTIONS = [
+  { id: 'languages', label: 'Languages', route: 'languages' },
+  { id: 'websites', label: 'Websites, Portfolios, Profiles', route: 'websites' },
+  { id: 'certifications', label: 'Certifications', route: 'certifications' },
+  { id: 'projects', label: 'Projects', route: 'custom-sections' },
+  { id: 'achievements', label: 'Achievements', route: 'custom-sections' },
+  { id: 'awards', label: 'Awards', route: 'custom-sections' },
+  { id: 'publications', label: 'Publications', route: 'custom-sections' },
+  { id: 'custom', label: 'Custom Section', route: 'custom-sections', allowMultiple: true },
+];
+
+function AddSectionButton({ option, added, onAdd }) {
+  return (
+    <button
+      type="button"
+      className={`fe-section-add-btn ${added ? 'is-added' : ''}`}
+      onClick={() => onAdd(option)}
+      disabled={added}
+      aria-label={added ? `${option.label} already added` : `Add ${option.label}`}
+    >
+      <span className="fe-section-add-icon" aria-hidden="true"><ResumeIcon name={added ? 'finish' : 'add'} size={20} /></span>
+      <span className="fe-section-add-label">{option.label}</span>
+      {added && <span className="fe-section-added-state">Added</span>}
+    </button>
+  );
+}
+
+const SECTION_LAYOUT_COLUMNS = [
+  { id: 'sidebar', label: 'Left column', description: 'Sidebar' },
+  { id: 'main', label: 'Right column', description: 'Main content' },
+];
+
+const sectionColumnDropId = column => `section-column-${column}`;
+
+function SortableItem({
+  id,
+  label,
+  index,
+  count,
+  column,
+  selected,
+  hovered,
+  onMove,
+  onMoveToColumn,
+  onSelect,
+  onHover,
+  registerItem,
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id });
+  const moveTarget = column === 'sidebar' ? 'main' : 'sidebar';
+  const moveTargetLabel = column === 'sidebar' ? 'right column' : 'left column';
+  const setRefs = (node) => {
+    setNodeRef(node);
+    registerItem?.(node);
+  };
+  return (
+    <div
+      ref={setRefs}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1, zIndex: isDragging ? 10 : 1 }}
+      className={`fe-sortable-item ${selected ? 'is-selected' : ''} ${hovered ? 'is-hovered' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver && !isDragging ? 'is-drop-target' : ''}`}
+      data-section-id={id}
+      onClick={() => onSelect?.(id)}
+      onMouseEnter={() => onHover?.(id)}
+      onMouseLeave={() => onHover?.('')}
+      {...attributes}
+    >
+      <span className="fe-drag-handle" {...listeners} title="Drag to reorder"><ResumeIcon name="drag" size={18} /></span>
+      <span className="fe-sortable-label">{label}</span>
+      <span className="fe-section-move-controls" aria-label={`Move ${label}`}>
+        <button type="button" className="btn btn-icon btn-ghost fe-section-move-btn" onClick={() => onMove(id, -1)} disabled={index === 0} aria-label={`Move ${label} up`} title={`Move ${label} up`}><ResumeIcon name="arrowUp" size={15} /></button>
+        <button type="button" className="btn btn-icon btn-ghost fe-section-move-btn fe-section-move-down" onClick={() => onMove(id, 1)} disabled={index === count - 1} aria-label={`Move ${label} down`} title={`Move ${label} down`}><ResumeIcon name="arrowUp" size={15} /></button>
+      </span>
+      {onMoveToColumn && (
+        <button type="button" className="btn btn-icon btn-ghost fe-section-column-btn" onClick={() => onMoveToColumn(id, moveTarget)} aria-label={`Move ${label} to the ${moveTargetLabel}`} title={`Move to ${moveTargetLabel}`}>
+          <ResumeIcon name={column === 'sidebar' ? 'arrowRight' : 'arrowLeft'} size={15} />
+        </button>
       )}
     </div>
   );
 }
 
-const SECTION_LABELS = {
-  summary: 'Summary',
-  workHistory: 'Work History',
-  education: 'Education',
-  skills: 'Skills',
-  personalDetails: 'Personal Details',
-  websites: 'Websites',
-  certifications: 'Certifications',
-  languages: 'Languages',
-};
+function SectionColumn({
+  column,
+  items,
+  state,
+  selectedSection,
+  hoveredSection,
+  onMove,
+  onMoveToColumn,
+  onSectionSelect,
+  onSectionHover,
+  registerItem,
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: sectionColumnDropId(column.id) });
+  return (
+    <section ref={setNodeRef} className={`fe-section-layout-column ${isOver ? 'is-drop-zone-active' : ''}`} aria-label={`${column.label}: ${column.description}`}>
+      <header className="fe-section-layout-column-header">
+        <span>{column.label}</span>
+        <small>{column.description}</small>
+      </header>
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        <div className="fe-section-layout-column-items">
+          {items.map((id, index) => (
+            <SortableItem
+              key={id}
+              id={id}
+              label={getSectionDisplayName(state, id)}
+              index={index}
+              count={items.length}
+              column={column.id}
+              selected={id === selectedSection}
+              hovered={id === hoveredSection}
+              onMove={(sectionId, direction) => onMove(column.id, sectionId, direction)}
+              onMoveToColumn={onMoveToColumn}
+              onSelect={onSectionSelect}
+              onHover={onSectionHover}
+              registerItem={node => registerItem(id, node)}
+            />
+          ))}
+          {!items.length && <p className="fe-section-layout-empty">Drop a section here</p>}
+        </div>
+      </SortableContext>
+    </section>
+  );
+}
 
-function SortableItem({ id }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function SectionOrderList({
+  state,
+  dispatch,
+  selectedSection = '',
+  hoveredSection = '',
+  onSectionSelect,
+  onSectionHover,
+  scrollContainerRef,
+}) {
+  const sectionOrder = getOrderedSectionIds(state);
+  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
+  const supportsColumns = selectedTemplate?.layout === '2-column';
+  const sectionColumns = getSectionColumns(state);
+  const [activeId, setActiveId] = useState(null);
+  const itemRefs = useRef(new Map());
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : 1,
+  const registerItem = (sectionId, node) => {
+    if (node) itemRefs.current.set(sectionId, node);
+    else itemRefs.current.delete(sectionId);
+  };
+
+  const scrollSectionItemIntoView = useCallback((sectionId) => {
+    const item = itemRefs.current.get(sectionId);
+    const container = scrollContainerRef?.current;
+    if (!item) return;
+
+    if (!container) {
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    const padding = 12;
+    const isOutsideView = itemRect.top < containerRect.top + padding
+      || itemRect.bottom > containerRect.bottom - padding;
+    if (!isOutsideView) return;
+
+    const targetTop = container.scrollTop
+      + (itemRect.top - containerRect.top)
+      - ((container.clientHeight - item.offsetHeight) / 2);
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+  }, [scrollContainerRef]);
+
+  useEffect(() => {
+    if (selectedSection) scrollSectionItemIntoView(selectedSection);
+  }, [scrollSectionItemIntoView, selectedSection]);
+
+  useEffect(() => {
+    if (hoveredSection) scrollSectionItemIntoView(hoveredSection);
+  }, [hoveredSection, scrollSectionItemIntoView]);
+
+  const updateTwoColumnLayout = (columns) => {
+    const nextColumns = Object.fromEntries([
+      ...columns.sidebar.map(id => [id, 'sidebar']),
+      ...columns.main.map(id => [id, 'main']),
+    ]);
+    dispatch({
+      type: 'UPDATE_SECTION_LAYOUT',
+      payload: { sectionOrder: [...columns.sidebar, ...columns.main], sectionColumns: nextColumns },
+    });
+  };
+
+  const columnForDropId = (dropId) => {
+    if (dropId === sectionColumnDropId('sidebar')) return 'sidebar';
+    if (dropId === sectionColumnDropId('main')) return 'main';
+    if (sectionColumns.sidebar.includes(dropId)) return 'sidebar';
+    if (sectionColumns.main.includes(dropId)) return 'main';
+    return null;
+  };
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over) {
+      setActiveId(null);
+      return;
+    }
+
+    if (active.id === over.id) {
+      setActiveId(null);
+      return;
+    }
+
+    if (!supportsColumns) {
+      const newOrder = arrayMove(sectionOrder, sectionOrder.indexOf(active.id), sectionOrder.indexOf(over.id));
+      dispatch({ type: 'REORDER_SECTIONS', payload: newOrder });
+    }
+
+    if (supportsColumns) {
+      const activeColumn = columnForDropId(active.id);
+      const targetColumn = columnForDropId(over.id);
+      if (activeColumn && targetColumn) {
+        const nextLayout = {
+          sidebar: [...sectionColumns.sidebar],
+          main: [...sectionColumns.main],
+        };
+        const activeIndex = nextLayout[activeColumn].indexOf(active.id);
+
+        if (activeIndex >= 0) {
+          nextLayout[activeColumn].splice(activeIndex, 1);
+          const targetItems = nextLayout[targetColumn];
+          const overIndex = over.id === sectionColumnDropId(targetColumn)
+            ? targetItems.length
+            : targetItems.indexOf(over.id);
+          targetItems.splice(overIndex < 0 ? targetItems.length : overIndex, 0, active.id);
+          updateTwoColumnLayout(nextLayout);
+        }
+      }
+    }
+    setActiveId(null);
+  };
+
+  const moveSection = (sectionId, direction) => {
+    const currentIndex = sectionOrder.indexOf(sectionId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sectionOrder.length) return;
+    dispatch({ type: 'REORDER_SECTIONS', payload: arrayMove(sectionOrder, currentIndex, nextIndex) });
+  };
+
+  const moveWithinColumn = (column, sectionId, direction) => {
+    const items = sectionColumns[column];
+    const currentIndex = items.indexOf(sectionId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= items.length) return;
+    updateTwoColumnLayout({
+      ...sectionColumns,
+      [column]: arrayMove(items, currentIndex, nextIndex),
+    });
+  };
+
+  const moveToColumn = (sectionId, targetColumn) => {
+    const sourceColumn = sectionColumns.sidebar.includes(sectionId) ? 'sidebar' : 'main';
+    if (sourceColumn === targetColumn) return;
+    updateTwoColumnLayout({
+      ...sectionColumns,
+      [sourceColumn]: sectionColumns[sourceColumn].filter(id => id !== sectionId),
+      [targetColumn]: [...sectionColumns[targetColumn], sectionId],
+    });
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="fe-sortable-item" {...attributes}>
-      <span className="fe-drag-handle" {...listeners}>⋮⋮</span>
-      <span style={{ fontSize: 'var(--font-size-sm)', flex: 1 }}>{SECTION_LABELS[id] || id}</span>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={({ active }) => {
+        setActiveId(active.id);
+        onSectionSelect?.(active.id);
+      }}
+      onDragCancel={() => {
+        setActiveId(null);
+        onSectionHover?.('');
+      }}
+      onDragEnd={handleDragEnd}
+    >
+      {supportsColumns ? (
+        <div className="fe-section-layout-manager">
+          {SECTION_LAYOUT_COLUMNS.map(column => (
+            <SectionColumn
+              key={column.id}
+              column={column}
+              items={sectionColumns[column.id]}
+              state={state}
+              selectedSection={selectedSection}
+              hoveredSection={hoveredSection}
+              onMove={moveWithinColumn}
+              onMoveToColumn={moveToColumn}
+              onSectionSelect={onSectionSelect}
+              onSectionHover={onSectionHover}
+              registerItem={registerItem}
+            />
+          ))}
+        </div>
+      ) : (
+        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+          {sectionOrder.map((id, index) => (
+            <SortableItem
+              key={id}
+              id={id}
+              label={getSectionDisplayName(state, id)}
+              index={index}
+              count={sectionOrder.length}
+              selected={id === selectedSection}
+              hovered={id === hoveredSection}
+              onMove={moveSection}
+              onSelect={onSectionSelect}
+              onHover={onSectionHover}
+              registerItem={node => registerItem(id, node)}
+            />
+          ))}
+        </SortableContext>
+      )}
+      <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
+        {activeId ? <div className="fe-sortable-item fe-drag-overlay"><span className="fe-drag-handle"><ResumeIcon name="drag" size={18} /></span><span className="fe-sortable-label">{getSectionDisplayName(state, activeId)}</span></div> : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function SectionReorderDialog({
+  state,
+  dispatch,
+  selectedSection,
+  hoveredSection,
+  onSectionSelect,
+  onSectionHover,
+  onClose,
+}) {
+  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
+  const supportsColumns = selectedTemplate?.layout === '2-column';
+  const reorderListRef = useRef(null);
+  return (
+    <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="fe-section-dialog fe-reorder-dialog" role="dialog" aria-modal="true" aria-labelledby="reorder-section-title" onMouseDown={event => event.stopPropagation()}>
+        <div className="fe-reorder-dialog-header">
+          <div>
+            <h2 id="reorder-section-title">{supportsColumns ? 'Arrange sections' : 'Reorder sections'}</h2>
+            <p>{supportsColumns
+              ? 'Drag between the left sidebar and right content column, or use the arrow controls. Changes appear in the preview immediately.'
+              : 'Drag a section or use the arrow controls to change its position. Changes appear in the preview immediately.'}
+            </p>
+          </div>
+          <button type="button" className="btn btn-icon btn-ghost fe-reorder-close" onClick={onClose} aria-label="Close reorder sections" title="Close"><ResumeIcon name="close" size={18} /></button>
+        </div>
+        <div className="fe-reorder-list" ref={reorderListRef}>
+          <SectionOrderList
+            state={state}
+            dispatch={dispatch}
+            selectedSection={selectedSection}
+            hoveredSection={hoveredSection}
+            onSectionSelect={onSectionSelect}
+            onSectionHover={onSectionHover}
+            scrollContainerRef={reorderListRef}
+          />
+        </div>
+        <div className="fe-section-dialog-actions">
+          <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
+        </div>
+      </section>
     </div>
   );
 }
 
-function SectionsPanel({ state, dispatch }) {
+function SectionsPanel({
+  state,
+  dispatch,
+  selectedSection,
+  hoveredSection,
+  onSectionSelect,
+  onSectionHover,
+  scrollContainerRef,
+}) {
   const navigate = useNavigate();
-  const sectionOrder = state.design.sectionOrder || Object.keys(SECTION_LABELS);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const selectedSections = state.extraSections?.selected || [];
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (active.id !== over?.id) {
-      const oldIndex = sectionOrder.indexOf(active.id);
-      const newIndex = sectionOrder.indexOf(over.id);
-      const newOrder = arrayMove(sectionOrder, oldIndex, newIndex);
-      dispatch({ type: 'REORDER_SECTIONS', payload: newOrder });
-    }
+  const isAdded = (id) => {
+    if (selectedSections.includes(id)) return true;
+    if (id === 'languages') return state.languages?.some(item => item.language);
+    if (id === 'websites') return state.websites?.some(item => item.url);
+    if (id === 'certifications') return Boolean(state.certifications?.content);
+    return state.extraSections?.custom?.some(item => item.id === id && (item.content || item.title));
   };
 
-  const handleAddSection = (route) => {
-    navigate(`/builder/${route}`);
+  const addSection = (option) => {
+    if (!option.allowMultiple && isAdded(option.id)) return;
+    if (option.route === 'custom-sections') {
+      dispatch({
+        type: 'ADD_CUSTOM_SECTION',
+        payload: option.allowMultiple ? { title: option.label } : { id: option.id, title: option.label },
+      });
+    } else {
+      dispatch({
+        type: 'SET_EXTRA_SECTIONS',
+        payload: { selected: [...selectedSections, option.id] },
+      });
+    }
+    navigate(`/builder/${option.route}`);
   };
 
   return (
     <div className="fe-sections-panel">
       <h3>Add a Section</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-6)' }}>
-        <button className="btn btn-outline" onClick={() => handleAddSection('languages')} style={{ justifyContent: 'flex-start' }}>➕ Languages</button>
-        <button className="btn btn-outline" onClick={() => handleAddSection('websites')} style={{ justifyContent: 'flex-start' }}>➕ Websites, Portfolios, Profiles</button>
-        <button className="btn btn-outline" onClick={() => handleAddSection('certifications')} style={{ justifyContent: 'flex-start' }}>➕ Certifications</button>
+      <div className="fe-add-section-actions">
+        {ADD_SECTION_OPTIONS.map(option => (
+          <AddSectionButton key={option.id} option={option} added={!option.allowMultiple && isAdded(option.id)} onAdd={addSection} />
+        ))}
       </div>
-
-      <hr style={{ borderColor: 'var(--color-border)', margin: 'var(--space-4) 0' }} />
-
+      <div className="fe-add-section-list">
+        <button className="btn btn-outline fe-section-add-btn" onClick={() => navigate('/builder/languages')}>➕ Languages</button>
+        <button className="btn btn-outline fe-section-add-btn" onClick={() => navigate('/builder/websites')}>➕ Websites, Portfolios, Profiles</button>
+        <button className="btn btn-outline fe-section-add-btn" onClick={() => navigate('/builder/certifications')}>➕ Certifications</button>
+      </div>
+      <hr className="fe-section-divider" />
       <h3>Reorder Sections</h3>
-      <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
-        Drag to reorder sections on your resume.
-      </p>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
-          {sectionOrder.map(id => (
-            <SortableItem key={id} id={id} />
-          ))}
-        </SortableContext>
-      </DndContext>
+      <p className="fe-section-help">Drag a section, or use the arrow controls, to reorder your resume.</p>
+      <SectionOrderList
+        state={state}
+        dispatch={dispatch}
+        selectedSection={selectedSection}
+        hoveredSection={hoveredSection}
+        onSectionSelect={onSectionSelect}
+        onSectionHover={onSectionHover}
+        scrollContainerRef={scrollContainerRef}
+      />
     </div>
   );
 }

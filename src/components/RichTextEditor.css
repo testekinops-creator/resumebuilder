@@ -5,6 +5,11 @@
   background: var(--color-surface);
   overflow: hidden;
   transition: border-color var(--transition-fast);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .rte-wrapper:focus-within {
@@ -20,12 +25,20 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-secondary);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .rte-toolbar-group {
   display: flex;
   gap: 2px;
+  flex: 0 0 auto;
+}
+
+.rte-toolbar-actions {
+  margin-left: 0;
 }
 
 .rte-btn {
@@ -42,6 +55,7 @@
   background: none;
   border: none;
   padding: 0;
+  flex: 0 0 32px;
 }
 
 .rte-btn:hover {
@@ -89,6 +103,99 @@
   transform: translateY(-1px);
 }
 
+/* The AI panel stays inside an editor, but only its recommendation list
+   scrolls. This avoids clipped actions at the bottom of a short editor and
+   keeps the close/apply controls visible at every viewport height. */
+.rte-ai-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  width: min(540px, calc(100vw - 32px));
+  height: min(520px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+  flex-direction: column;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-focus);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.32);
+  transform: translate(-50%, -50%);
+}
+
+.rte-ai-header,
+.rte-ai-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rte-ai-header h3 { margin: 0; font-size: var(--font-size-lg); }
+.rte-ai-header button,
+.rte-ai-cancel {
+  border: 0;
+  background: none;
+  color: var(--color-text-link);
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+}
+
+.rte-ai-header button {
+  display: inline-flex;
+  padding: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.rte-ai-description {
+  flex: 0 0 auto;
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.rte-ai-recommendations {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+  scrollbar-gutter: stable;
+}
+
+.rte-ai-recommendations ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rte-ai-recommendations label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+  line-height: var(--line-height-relaxed);
+}
+
+.rte-ai-recommendations input { flex: 0 0 auto; margin-top: 0.3em; accent-color: var(--color-primary); }
+.rte-ai-apply { min-width: 148px; border-radius: 999px; }
+
+@media (max-width: 480px) {
+  .rte-ai-overlay { padding: var(--space-4); }
+  .rte-ai-actions { align-items: stretch; flex-direction: column-reverse; }
+  .rte-ai-apply { width: 100%; }
+}
+
 /* Content Area */
 .rte-content {
   padding: var(--space-4);
@@ -96,6 +203,20 @@
   line-height: var(--line-height-relaxed);
   color: var(--color-text-primary);
   outline: none;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.rte-content *,
+.rte-content a {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .rte-content p {
@@ -108,8 +229,14 @@
   margin-bottom: var(--space-2);
 }
 
+.rte-content ul { list-style: disc outside; }
+.rte-content ol { list-style: decimal outside; }
+
 .rte-content li {
   margin-bottom: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .rte-content li p {
@@ -123,6 +250,14 @@
 
 .rte-content strong {
   font-weight: var(--font-weight-bold);
+}
+
+.rte-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-sm);
 }
 
 /* Placeholder */

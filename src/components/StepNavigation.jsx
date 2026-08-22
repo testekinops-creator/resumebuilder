@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ResumePreview from './ResumePreview';
+import ResumeIcon from './ResumeIcon';
+import ResumePreviewViewer from './ResumePreviewViewer';
 import './StepNavigation.css';
 
 export default function StepNavigation({
@@ -13,12 +15,23 @@ export default function StepNavigation({
   optional,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const returnTo = location.state?.returnTo;
+  const finalizeReturnState = returnTo === '/finalize'
+    ? { focusSection: location.state?.focusSection }
+    : undefined;
+
+  const returnToFinalize = () => navigate(returnTo, { state: finalizeReturnState });
 
   const handleNext = () => {
     if (onNext) {
       const result = onNext();
       if (result === false) return;
+    }
+    if (returnTo) {
+      returnToFinalize();
+      return;
     }
     if (nextPath) navigate(nextPath);
   };
@@ -26,15 +39,15 @@ export default function StepNavigation({
   return (
     <div className="step-navigation">
       {backPath && (
-        <button className="step-nav-back" onClick={() => navigate(backPath)}>
-          ← Go Back
+        <button className="step-nav-back" onClick={() => returnTo ? returnToFinalize() : navigate(backPath)}>
+          <ResumeIcon name="arrowLeft" size={16} />Go Back
         </button>
       )}
       <div className="step-nav-actions">
         {optional && <span className="step-nav-optional">{optional}</span>}
         {showPreview && (
           <button className="btn btn-outline-dark" onClick={() => setShowPreviewModal(true)}>
-            Preview
+            <ResumeIcon name="preview" size={17} />Preview
           </button>
         )}
         <button
@@ -42,17 +55,15 @@ export default function StepNavigation({
           onClick={handleNext}
           disabled={disabled}
         >
-          {nextLabel}
+          {returnTo ? 'Save & Return to Resume' : nextLabel}
         </button>
       </div>
 
       {showPreviewModal && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000 }} onClick={() => setShowPreviewModal(false)}>
-          <div className="mobile-preview-content" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowPreviewModal(false)} style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'white' }}>✕</button>
-            <ResumePreview scale={0.55} />
-          </div>
-        </div>
+        <ResumePreviewViewer
+          onClose={() => setShowPreviewModal(false)}
+          renderResume={({ viewerScale }) => <ResumePreview viewerScale={viewerScale} className="resume-viewer-preview" />}
+        />
       )}
     </div>
   );

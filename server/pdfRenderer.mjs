@@ -452,8 +452,21 @@ export async function renderResumePdf(payload, {
       browser = await getPdfBrowser({
         launchTimeoutMs: remainingTimeout(deadline, 20_000, 'browser_launch'),
       });
-      context = await browser.createBrowserContext();
-      page = await context.newPage();
+      try {
+        context = await browser.createBrowserContext();
+        page = await context.newPage();
+      } catch (contextError) {
+        // Some constrained serverless Chromium builds reject incognito
+        // contexts even though a clean page in the default context works.
+        // The page still receives strict request interception and is closed
+        // after every job; the browser process is reset on transient errors.
+        context = undefined;
+        try {
+          page = await browser.newPage();
+        } catch (pageError) {
+          throw new AggregateError([contextError, pageError], 'A browser page could not be opened.');
+        }
+      }
     } catch (error) {
       throw stageError('page_create', 'A Chromium page could not be created.', error);
     }
@@ -462,6 +475,7 @@ export async function renderResumePdf(payload, {
     page.setDefaultTimeout(renderTimeout);
     page.setDefaultNavigationTimeout(remainingTimeout(deadline, NAVIGATION_TIMEOUT_MS, 'navigation'));
     await page.setViewport({ width: 1280, height: 1123, deviceScaleFactor: 1 });
+    await page.setBypassServiceWorker(true);
     await restrictPageRequests(page, exportUrl);
 
     try {

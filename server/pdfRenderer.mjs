@@ -255,8 +255,12 @@ async function browserLaunchOptions(launchTimeoutMs) {
       ({ default: chromium } = await import('@sparticuz/chromium'));
       chromium.setGraphicsMode = false;
       const executablePath = await chromium.executablePath();
-      return {
+      const args = await puppeteer.defaultArgs({
         args: chromium.args,
+        headless: 'shell',
+      });
+      return {
+        args,
         executablePath,
         headless: 'shell',
         timeout: launchTimeoutMs,

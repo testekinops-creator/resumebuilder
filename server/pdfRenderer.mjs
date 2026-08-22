@@ -456,20 +456,14 @@ export async function renderResumePdf(payload, {
       browser = await getPdfBrowser({
         launchTimeoutMs: remainingTimeout(deadline, 20_000, 'browser_launch'),
       });
-      try {
+      if (isServerlessChromiumRuntime()) {
+        // chrome-headless-shell runs single-process in the serverless build.
+        // Creating an incognito context can terminate that process before the
+        // first target opens, so use its documented default-page path here.
+        page = await browser.newPage();
+      } else {
         context = await browser.createBrowserContext();
         page = await context.newPage();
-      } catch (contextError) {
-        // Some constrained serverless Chromium builds reject incognito
-        // contexts even though a clean page in the default context works.
-        // The page still receives strict request interception and is closed
-        // after every job; the browser process is reset on transient errors.
-        context = undefined;
-        try {
-          page = await browser.newPage();
-        } catch (pageError) {
-          throw new AggregateError([contextError, pageError], 'A browser page could not be opened.');
-        }
       }
     } catch (error) {
       throw stageError('page_create', 'A Chromium page could not be created.', error);
@@ -484,6 +478,13 @@ export async function renderResumePdf(payload, {
 
     try {
       await page.evaluateOnNewDocument(exportPayload => {
+        try {
+          window.localStorage.clear();
+          window.sessionStorage.clear();
+        } catch {
+          // Storage may be unavailable on a hardened browser context. The
+          // injected export payload remains the sole source for this route.
+        }
         window.__RESUME_EXPORT_STATE__ = exportPayload;
       }, { state: request.state, resumeName: request.resumeName });
     } catch (error) {

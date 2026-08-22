@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import handler from '../api/resume-pdf.mjs';
+import handler, { getVercelAppOrigin } from '../api/resume-pdf.mjs';
 import { TEMPLATES } from '../src/data/templates.js';
 import {
   getRequestOrigin,
@@ -87,6 +87,19 @@ test('request origins and attachment filenames are normalized safely', () => {
     },
   }), 'https://resume.example.com');
   assert.equal(safePdfFilename(' Deepak / Résumé '), 'Deepak_Resume.pdf');
+});
+
+test('Vercel renderer prefers the stable production origin over a generated deployment URL', () => {
+  assert.equal(getVercelAppOrigin({
+    VERCEL_PROJECT_PRODUCTION_URL: 'resume.example.com',
+    VERCEL_URL: 'resume-random-hash.vercel.app',
+  }), 'https://resume.example.com');
+  assert.equal(getVercelAppOrigin({
+    VERCEL_URL: 'resume-random-hash.vercel.app',
+  }), 'https://resume-random-hash.vercel.app');
+  assert.equal(getVercelAppOrigin({
+    VERCEL_PROJECT_PRODUCTION_URL: 'https://user@example.com/private',
+  }), undefined);
 });
 
 test('Vercel handler rejects unsupported methods and templates before launching Chromium', async () => {

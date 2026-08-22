@@ -7,6 +7,22 @@ import {
   validatePdfExportPayload,
 } from '../server/pdfRenderer.mjs';
 
+export function getVercelAppOrigin(environment = process.env) {
+  const configuredHost = environment.VERCEL_PROJECT_PRODUCTION_URL || environment.VERCEL_URL;
+  if (!configuredHost) return undefined;
+
+  try {
+    const value = String(configuredHost).trim();
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/') {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export const config = { maxDuration: 60 };
 
 function sendJson(response, statusCode, payload) {
@@ -105,9 +121,9 @@ export default async function handler(request, response) {
       resumeId: safeDiagnosticId(validated.resumeId),
     };
 
-    const requestOrigin = process.env.VERCEL_URL
-      ? `https://${String(process.env.VERCEL_URL).replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
-      : undefined;
+    // Generated deployment URLs can be protected and are unsuitable for an
+    // internal browser fetch. Prefer the stable project production origin.
+    const requestOrigin = getVercelAppOrigin();
     if (!process.env.PDF_EXPORT_APP_URL && !requestOrigin) {
       throw new PdfExportError('The deployment origin could not be determined.', {
         stage: 'validation',

@@ -111,7 +111,7 @@ export default function WorkHistoryForm() {
       {/* Empty State Modal */}
       {showEmptyModal && (
         <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="mobile-preview-content" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', background: 'white', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
+          <div className="mobile-preview-content builder-empty-dialog" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
             <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
             
             <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Don't forget to include other work experience</h3>

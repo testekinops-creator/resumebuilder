@@ -58,17 +58,6 @@ export default function BuilderLayout() {
         </button>
       </aside>
 
-      {/* Mobile floating preview button */}
-      <button
-        className="mobile-preview-fab"
-        onClick={() => setShowMobilePreview(!showMobilePreview)}
-        aria-label="Toggle resume preview"
-        title={showMobilePreview ? 'Close resume preview' : 'View full preview'}
-      >
-        <ResumeIcon name={showMobilePreview ? 'close' : 'preview'} size={20} />
-      </button>
-
-      {/* Mobile preview overlay */}
       {showMobilePreview && (
         <ResumePreviewViewer
           onClose={() => setShowMobilePreview(false)}

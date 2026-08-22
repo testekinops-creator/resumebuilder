@@ -35,7 +35,8 @@ export default function Navbar() {
             <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
           </button>
           <Link to="/get-started" className="btn btn-accent btn-sm">
-            Build My Resume
+            <span className="navbar-cta-long">Build My Resume</span>
+            <span className="navbar-cta-short">Build Resume</span>
           </Link>
         </div>
       </div>

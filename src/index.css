@@ -70,6 +70,14 @@
   --focus-ring: rgba(190, 18, 60, 0.24);
   --disabled-bg: #E5EAF2;
   --disabled-text: #536278;
+  --text-on-secondary: #FFFFFF;
+  --outline-button-border: #475569;
+  --outline-button-hover-bg: #334155;
+  --outline-button-hover-text: #FFFFFF;
+  --ai-card-bg: linear-gradient(135deg, #F5F3FF 0%, #EEF2FF 100%);
+  --ai-card-text: #334155;
+  --ai-card-border: #7C3AED;
+  --ai-card-icon: #6D28D9;
 
   /* Shared app chrome and onboarding workflow */
   --color-navbar-bg: #1A1F36;
@@ -241,6 +249,14 @@
   --focus-ring: rgba(251, 113, 133, 0.32);
   --disabled-bg: #303B53;
   --disabled-text: #B7C4D6;
+  --text-on-secondary: #111827;
+  --outline-button-border: #94A3B8;
+  --outline-button-hover-bg: #CBD5E1;
+  --outline-button-hover-text: #111827;
+  --ai-card-bg: linear-gradient(135deg, #28213E 0%, #202B45 100%);
+  --ai-card-text: #E8EDF6;
+  --ai-card-border: #A78BFA;
+  --ai-card-icon: #C4B5FD;
 
   --color-navbar-bg: #0D1120;
   --color-navbar-text: #F8FAFC;
@@ -338,6 +354,12 @@ body {
   background-color: var(--page-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 img, svg {
@@ -490,13 +512,13 @@ button:disabled .resume-icon {
 
 .btn-outline-dark {
   background: transparent;
-  color: var(--color-secondary);
-  border: 2px solid var(--color-secondary);
+  color: var(--text-primary);
+  border: 2px solid var(--outline-button-border);
 }
 
 .btn-outline-dark:hover {
-  background: var(--color-secondary);
-  color: var(--color-text-inverse);
+  background: var(--outline-button-hover-bg);
+  color: var(--outline-button-hover-text);
 }
 
 .btn-ghost {
@@ -796,7 +818,8 @@ button:disabled .resume-icon {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -805,6 +828,8 @@ button:disabled .resume-icon {
   z-index: var(--z-modal);
   backdrop-filter: blur(4px);
 }
+
+.loading-overlay p { color: var(--text-secondary); }
 
 .skeleton {
   background: linear-gradient(90deg, var(--color-surface-tertiary) 25%, var(--color-surface-secondary) 50%, var(--color-surface-tertiary) 75%);
@@ -927,8 +952,19 @@ button:disabled .resume-icon {
 }
 
 .callout-ai {
-  background: linear-gradient(135deg, #F5F3FF, #EEF2FF);
-  border-color: #8B5CF6;
+  background: var(--ai-card-bg);
+  border-color: var(--ai-card-border);
+  color: var(--ai-card-text);
+}
+
+.callout-ai > .resume-icon {
+  flex: 0 0 auto;
+  color: var(--ai-card-icon);
+}
+
+.callout-ai strong,
+.callout-ai p {
+  color: inherit;
 }
 
 /* The final ATS review screen uses this instead of light-only inline colors. */
@@ -1013,23 +1049,23 @@ button:disabled .resume-icon {
 }
 
 .badge-recommended {
-  background: linear-gradient(135deg, var(--color-accent), #C026D3);
-  color: white;
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .badge-expert {
-  background: linear-gradient(135deg, #F59E0B, #F97316);
-  color: white;
+  background: #FBBF24;
+  color: #422006;
 }
 
 .badge-personalized {
-  background: linear-gradient(135deg, #8B5CF6, #6366F1);
-  color: white;
+  background: #6D28D9;
+  color: #FFFFFF;
 }
 
 .badge-new {
   background: var(--color-success);
-  color: white;
+  color: #052E24;
 }
 
 /* --- Validation Icons --- */
@@ -1115,8 +1151,8 @@ button:disabled .resume-icon {
 
 .btn-outline-dark {
   background: transparent;
-  color: var(--color-text-primary);
-  border: 2px solid var(--color-border);
+  color: var(--text-primary);
+  border: 2px solid var(--outline-button-border);
   padding: var(--space-3) var(--space-6);
   border-radius: var(--radius-full);
   font-weight: var(--font-weight-semibold);
@@ -1125,8 +1161,9 @@ button:disabled .resume-icon {
 }
 
 .btn-outline-dark:hover {
-  border-color: var(--color-secondary);
-  background: var(--color-surface-tertiary);
+  border-color: var(--outline-button-hover-bg);
+  background: var(--outline-button-hover-bg);
+  color: var(--outline-button-hover-text);
 }
 
 /* --- Form Checkbox Group --- */

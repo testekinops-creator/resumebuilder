@@ -305,12 +305,9 @@
   font-size: 10px;
 }
 
-/* Mobile: hidden by default, shown with toggle */
+/* Legacy full-screen preview state. Responsive parents decide whether their
+   inline preview is visible; the document itself must not disappear globally. */
 @media (max-width: 1024px) {
-  .preview-container:not(.template-thumbnail-resume):not(.fe-template-thumbnail):not(.resume-viewer-preview) {
-    display: none;
-  }
-
   .preview-container.mobile-visible {
     display: flex;
     position: fixed;

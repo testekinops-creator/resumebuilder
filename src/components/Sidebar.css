@@ -1,6 +1,7 @@
 .sidebar {
   width: 200px;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
   display: flex;
@@ -20,7 +21,7 @@
   align-items: center;
   gap: var(--space-2);
   text-decoration: none;
-  color: var(--color-text-inverse);
+  color: var(--color-sidebar-text-active);
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-sm);
 }
@@ -71,14 +72,14 @@
 
 .sidebar-step.active .step-indicator {
   background: transparent;
-  border: 2px solid var(--color-text-inverse);
-  color: var(--color-text-inverse);
+  border: 2px solid var(--color-sidebar-text-active);
+  color: var(--color-sidebar-text-active);
 }
 
 .sidebar-step.completed .step-indicator {
   background: var(--color-sidebar-accent);
   border: 2px solid var(--color-sidebar-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-sidebar-text-active);
 }
 
 .step-number {
@@ -101,12 +102,12 @@
 }
 
 .sidebar-step.active .step-label {
-  color: var(--color-text-inverse);
+  color: var(--color-sidebar-text-active);
   font-weight: var(--font-weight-bold);
 }
 
 .sidebar-step.completed .step-label {
-  color: var(--color-text);
+  color: var(--sidebar-text-done);
   font-weight: 500;
 }
 
@@ -114,7 +115,7 @@
   cursor: pointer;
 }
 .sidebar-step.clickable:hover {
-  background-color: var(--color-surface-hover);
+  background-color: var(--sidebar-surface-hover);
 }
 
 /* Connector line */
@@ -145,7 +146,7 @@
 .completeness-title {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-inverse);
+  color: var(--color-sidebar-text-active);
 }
 
 .completeness-bar {
@@ -167,7 +168,7 @@
 .completeness-value {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-inverse);
+  color: var(--color-sidebar-text-active);
 }
 
 /* Footer */
@@ -217,10 +218,16 @@
     position: static;
     flex-direction: row;
     align-items: center;
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-3) max(var(--space-4), env(safe-area-inset-right))
+      var(--space-3) max(var(--space-4), env(safe-area-inset-left));
     gap: var(--space-2);
     overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
+
+  .sidebar::-webkit-scrollbar { display: none; }
 
   .sidebar-header { display: none; }
   .sidebar-footer { display: none; }
@@ -236,7 +243,10 @@
 
   .sidebar-step {
     flex-direction: column;
-    padding: var(--space-1);
+    min-width: 64px;
+    min-height: 52px;
+    justify-content: center;
+    padding: var(--space-1) var(--space-2);
     gap: var(--space-1);
   }
 
@@ -245,7 +255,7 @@
   }
 
   .step-label {
-    font-size: 10px;
+    font-size: 11px;
     white-space: nowrap;
   }
 

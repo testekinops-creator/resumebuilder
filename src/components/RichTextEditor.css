@@ -65,7 +65,7 @@
 
 .rte-btn.active {
   background: var(--color-secondary);
-  color: white;
+  color: var(--text-on-secondary);
 }
 
 .rte-btn:disabled {

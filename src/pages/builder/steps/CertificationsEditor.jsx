@@ -32,7 +32,7 @@ export default function CertificationsEditor() {
         <div className="panel">
           <div className="form-group">
             <label className="form-label">Search certifications by job title</label>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div className="builder-search-row">
               <input className="form-input" type="text" placeholder="e.g. Project Manager"
                 value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()} />

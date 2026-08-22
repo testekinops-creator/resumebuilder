@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useResume } from '../context/ResumeContext';
 import { useTheme } from '../hooks/useTheme';
@@ -11,7 +11,7 @@ const STEPS = [
   { id: 'education', label: 'Education', icon: 'education', introPath: '/builder/education-intro', summaryPath: '/builder/education-summary', paths: ['/builder/education-intro', '/builder/education-level', '/builder/education-form', '/builder/education-summary'] },
   { id: 'skills', label: 'Skills', icon: 'skills', introPath: '/builder/skills-intro', summaryPath: '/builder/skills-editor', paths: ['/builder/skills-intro', '/builder/skills-editor'] },
   { id: 'summary', label: 'Summary', icon: 'summary', introPath: '/builder/summary-intro', summaryPath: '/builder/summary-editor', paths: ['/builder/summary-intro', '/builder/summary-editor'] },
-  { id: 'finalize', label: 'Finalize', icon: 'finish', introPath: '/finalize', summaryPath: '/finalize', paths: ['/builder/extra-sections', '/builder/personal-details', '/builder/websites', '/builder/certifications', '/builder/languages', '/builder/smart-apply', '/finalize'] },
+  { id: 'finalize', label: 'Finalize', icon: 'finish', introPath: '/finalize', summaryPath: '/finalize', paths: ['/builder/extra-sections', '/builder/custom-sections', '/builder/personal-details', '/builder/websites', '/builder/certifications', '/builder/languages', '/builder/smart-apply', '/finalize'] },
 ];
 
 function checkHasData(stepIndex, state) {
@@ -35,6 +35,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { state, dispatch, completeness } = useResume();
   const { isDark, toggle } = useTheme();
+  const stepRefs = useRef([]);
 
   const currentStepIndex = STEPS.findIndex(step =>
     step.paths.some(p => location.pathname.startsWith(p))
@@ -45,6 +46,28 @@ export default function Sidebar() {
       dispatch({ type: 'UPDATE_FURTHEST_STEP', payload: currentStepIndex });
     }
   }, [currentStepIndex, dispatch]);
+
+  useEffect(() => {
+    const compactQuery = window.matchMedia('(max-width: 768px)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const centerActiveStep = () => {
+      const activeStep = stepRefs.current[currentStepIndex];
+      if (!activeStep || !compactQuery.matches) return;
+      activeStep.scrollIntoView({
+        behavior: reducedMotionQuery.matches ? 'auto' : 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    };
+
+    centerActiveStep();
+    compactQuery.addEventListener?.('change', centerActiveStep);
+    window.addEventListener('resize', centerActiveStep);
+    return () => {
+      compactQuery.removeEventListener?.('change', centerActiveStep);
+      window.removeEventListener('resize', centerActiveStep);
+    };
+  }, [currentStepIndex]);
 
   return (
     <aside className="sidebar" role="complementary" aria-label="Resume progress">
@@ -91,11 +114,11 @@ export default function Sidebar() {
           const targetPath = checkHasData(index, state) ? step.summaryPath : step.introPath;
 
           return isClickable ? (
-            <Link to={targetPath} key={step.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link ref={node => { stepRefs.current[index] = node; }} to={targetPath} key={step.id} aria-current={status === 'active' ? 'step' : undefined} style={{ textDecoration: 'none', color: 'inherit' }}>
               {StepContent}
             </Link>
           ) : (
-            <div key={step.id}>{StepContent}</div>
+            <div ref={node => { stepRefs.current[index] = node; }} key={step.id} aria-current={status === 'active' ? 'step' : undefined}>{StepContent}</div>
           );
         })}
       </nav>

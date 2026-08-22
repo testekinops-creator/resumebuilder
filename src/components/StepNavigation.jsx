@@ -46,7 +46,7 @@ export default function StepNavigation({
       <div className="step-nav-actions">
         {optional && <span className="step-nav-optional">{optional}</span>}
         {showPreview && (
-          <button className="btn btn-outline-dark" onClick={() => setShowPreviewModal(true)}>
+          <button className="btn btn-outline-dark step-nav-preview" onClick={() => setShowPreviewModal(true)}>
             <ResumeIcon name="preview" size={17} />Preview
           </button>
         )}

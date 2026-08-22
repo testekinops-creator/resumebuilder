@@ -740,13 +740,15 @@
   .hero-actions { justify-content: center; }
 
   .hero-visual {
-    min-height: 440px;
+    min-height: 0;
+    aspect-ratio: 4 / 5;
     margin-top: var(--space-2);
   }
 
-  .float-1 { right: -52px; }
-  .float-2 { left: -80px; }
-  .float-3 { right: -40px; }
+  .hero-resume-mockup { margin-right: 0; }
+  .float-1 { right: 0; }
+  .float-2 { left: 0; }
+  .float-3 { right: 0; }
 
   .steps-grid { grid-template-columns: 1fr; }
   .features-grid { grid-template-columns: 1fr; }
@@ -773,7 +775,9 @@
     min-height: 405px;
   }
 
-  .float-2 { left: -94px; }
+  .float-1,
+  .float-3 { right: 0; }
+  .float-2 { left: 0; }
   .features-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -793,12 +797,25 @@
   }
 
   .stat {
-    justify-content: center;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    justify-content: stretch;
     padding-inline: var(--space-2);
+    text-align: left;
+  }
+
+  .stat-arrow {
+    grid-row: 1 / 3;
+    align-self: center;
+    flex: 0 0 auto;
   }
 
   .stat-label {
     font-size: 11px;
+    line-height: 1.2;
+    white-space: normal;
   }
 
   .hero-actions {
@@ -814,14 +831,16 @@
 
   .hero-visual {
     box-sizing: border-box;
-    min-height: 450px;
-    padding-block: 39px;
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+    padding-block: clamp(26px, 9vw, 39px);
     width: 100%;
   }
 
   .hero-resume-mockup {
     width: min(100% - 12px, 342px);
-    min-height: 362px;
+    min-height: 0;
+    aspect-ratio: 0.94;
     margin-right: 0;
   }
 

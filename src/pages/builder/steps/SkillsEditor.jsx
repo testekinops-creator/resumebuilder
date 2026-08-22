@@ -134,7 +134,7 @@ export default function SkillsEditor() {
           <div className="panel">
             <div className="form-group">
               <label className="form-label">Search by job title</label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <div className="builder-search-row">
                 <input className="form-input" type="text" placeholder="e.g. Software Engineer"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSearch()} />
@@ -227,7 +227,7 @@ export default function SkillsEditor() {
             </p>
           )}
           {ratings.map(skill => (
-            <div key={skill.id} style={{
+            <div key={skill.id} className="skills-rating-row" style={{
               display: 'flex', alignItems: 'center', gap: 'var(--space-4)',
               padding: 'var(--space-3)', border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-md)', background: 'var(--color-surface)',
@@ -237,7 +237,7 @@ export default function SkillsEditor() {
                 style={{ flex: 1, maxWidth: 200 }} maxLength={50}
                 readOnly={skill.source === 'text'}
                 title={skill.source === 'text' ? 'Manage this skill in the Text Editor tab' : undefined} />
-              <div style={{ display: 'flex', gap: 2 }}>
+              <div className="skills-rating-stars" style={{ display: 'flex', gap: 2 }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <button key={star}
                     style={{ fontSize: '1.4rem', cursor: 'pointer', background: 'none', border: 'none', color: star <= skill.rating ? '#F59E0B' : '#D1D5DB' }}
@@ -267,7 +267,7 @@ export default function SkillsEditor() {
       {/* Empty State Modal */}
       {showEmptyModal && (
         <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="mobile-preview-content" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', background: 'white', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
+          <div className="mobile-preview-content builder-empty-dialog" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
             <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
             
             <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Are you sure you don't want to add any skills?</h3>

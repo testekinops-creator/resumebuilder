@@ -4,6 +4,7 @@ import { useResume } from '../../context/ResumeContext';
 import { COLOR_SCHEMES, FONT_FAMILIES, TEMPLATES } from '../../data/templates';
 import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
+import ResumePreviewViewer from '../../components/ResumePreviewViewer';
 import { getOrderedSectionIds, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
 import { getResumeQualityReview } from '../../utils/resumeQuality';
 import { generateDOCX, generatePDF, printResume, emailResume } from '../../utils/pdfGenerator';
@@ -49,6 +50,8 @@ export default function FinalEditor() {
     () => !isFinalizeWelcomeDismissed(state.meta?.id),
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPreviewViewer, setShowPreviewViewer] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const [generating, setGenerating] = useState('');
   const [selectedSection, setSelectedSection] = useState(() => location.state?.focusSection || '');
   const [hoveredSection, setHoveredSection] = useState('');
@@ -81,6 +84,33 @@ export default function FinalEditor() {
     const clearFocus = window.setTimeout(() => setFocusSection(''), 1900);
     return () => window.clearTimeout(clearFocus);
   }, [focusPreviewSection, location.key, location.state?.focusSection]);
+
+  useEffect(() => {
+    if (!showMobileActions) return undefined;
+
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+    if (!mobileQuery.matches) {
+      setShowMobileActions(false);
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setShowMobileActions(false);
+    };
+    const closeOnDesktop = (event) => {
+      if (!event.matches) setShowMobileActions(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+    mobileQuery.addEventListener('change', closeOnDesktop);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+      mobileQuery.removeEventListener('change', closeOnDesktop);
+    };
+  }, [showMobileActions]);
 
   const handleDownload = async (format = 'pdf') => {
     const exportFormat = typeof format === 'string' ? format : 'pdf';
@@ -317,6 +347,19 @@ export default function FinalEditor() {
           </div>
         </aside>
 
+        {selectedSection && (
+          <div className="fe-mobile-quick-actions">
+            <SectionQuickActions
+              sectionName={selectedSectionName}
+              canEdit={Boolean(getSectionEditRoute(state, selectedSection))}
+              onEdit={editSelectedSection}
+              onDelete={() => setSectionPendingDelete(selectedSection)}
+              onRename={requestRenameSelectedSection}
+              onReorder={() => { setActiveTab('sections'); setShowSectionReorder(true); }}
+            />
+          </div>
+        )}
+
         <main className="fe-main">
           {selectedSection && (
             <SectionQuickActions
@@ -329,9 +372,9 @@ export default function FinalEditor() {
             />
           )}
           <div className="fe-preview-scroll" aria-label="Resume preview">
-            <div className="fe-resume-wrapper" ref={previewRef} style={{ '--editor-scale': zoom / 100, transform: `scale(${zoom / 100})` }}>
+            <div className="fe-resume-wrapper" ref={previewRef}>
               <ResumePreview
-                scale={1}
+                scale={zoom / 100}
                 interactive
                 selectedSection={selectedSection}
                 hoveredSection={hoveredSection}
@@ -361,20 +404,81 @@ export default function FinalEditor() {
             <ResumeIcon name="document" size={16} />
             <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'} in preview</span>
           </div>
-          <ResumeReview findings={reviewFindings} />
-          <div className="fe-action-buttons">
-            <button className="btn btn-outline-dark fe-action-button fe-export-button" onClick={() => handleDownload('docx')} disabled={Boolean(generating)} aria-label="Download DOCX" title="Download DOCX">
-              <ResumeIcon name="download" size={18} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
-            </button>
-            <button className="btn btn-primary fe-action-button fe-export-button" onClick={handleDownload} disabled={Boolean(generating)} aria-label="Download PDF" title="Download a vector PDF of your resume"><ResumeIcon name="download" size={18} />{generating ? 'Preparing...' : 'PDF'}</button>
-            <div className="fe-utility-actions" aria-label="Other resume actions">
-              <button className="btn btn-outline-dark fe-action-button" onClick={printResume}><ResumeIcon name="print" size={17} />Print</button>
-              <button className="btn btn-outline-dark fe-action-button" onClick={() => emailResume(resumeName)}><ResumeIcon name="email" size={17} />Email</button>
-            </div>
-            <button className="btn btn-ghost fe-action-button fe-finish-button" onClick={() => setShowAuthModal(true)}><ResumeIcon name="finish" size={17} />Finish</button>
-          </div>
+          <ResumeReview findings={reviewFindings} id="resume-review-title" />
+          <FinalizeActionButtons
+            generating={generating}
+            onDownload={handleDownload}
+            resumeName={resumeName}
+            onFinish={() => setShowAuthModal(true)}
+          />
         </aside>
       </div>
+
+      <section className="fe-mobile-summary" aria-labelledby="mobile-finalize-title">
+        <div className="fe-mobile-completion">
+          <div>
+            <h2 id="mobile-finalize-title">Ready to finish</h2>
+            <span>{completeness}% complete</span>
+          </div>
+          <span className="fe-mobile-page-count"><ResumeIcon name="document" size={16} />{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
+          <div className="fe-mobile-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={completeness}>
+            <span style={{ width: `${completeness}%`, background: scoreColor }} />
+          </div>
+        </div>
+        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" />
+        <FinalizeActionButtons
+          generating={generating}
+          onDownload={handleDownload}
+          resumeName={resumeName}
+          onFinish={() => setShowAuthModal(true)}
+          onPreview={() => setShowPreviewViewer(true)}
+        />
+      </section>
+
+      <nav className="fe-mobile-primary-bar" aria-label="Finalize resume actions">
+        <button className="btn btn-outline-dark" onClick={() => setShowPreviewViewer(true)}>
+          <ResumeIcon name="preview" size={18} />Preview
+        </button>
+        <button className="btn btn-primary" onClick={() => handleDownload('pdf')} disabled={Boolean(generating)}>
+          <ResumeIcon name="download" size={18} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
+        </button>
+        <button className="btn btn-outline-dark" onClick={() => setShowMobileActions(true)} aria-haspopup="dialog">
+          <ResumeIcon name="more" size={18} />More
+        </button>
+        <button className="btn btn-outline-dark" onClick={() => setShowAuthModal(true)}>
+          <ResumeIcon name="finish" size={18} />Finish
+        </button>
+      </nav>
+
+      {showMobileActions && (
+        <div className="fe-mobile-actions-backdrop" role="presentation" onMouseDown={() => setShowMobileActions(false)}>
+          <section className="fe-mobile-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-actions-title" onMouseDown={event => event.stopPropagation()}>
+            <div className="fe-mobile-actions-heading">
+              <div>
+                <h2 id="mobile-actions-title">Download and share</h2>
+                <p>Choose what you want to do with this resume.</p>
+              </div>
+              <button type="button" className="btn btn-icon btn-ghost" onClick={() => setShowMobileActions(false)} aria-label="Close resume actions" autoFocus>
+                <ResumeIcon name="close" size={20} />
+              </button>
+            </div>
+            <div className="fe-mobile-actions-grid">
+              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); handleDownload('docx'); }} disabled={Boolean(generating)}>
+                <ResumeIcon name="download" size={19} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => { setShowMobileActions(false); handleDownload('pdf'); }} disabled={Boolean(generating)}>
+                <ResumeIcon name="download" size={19} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
+              </button>
+              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); printResume(); }}>
+                <ResumeIcon name="print" size={19} />Print
+              </button>
+              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); emailResume(resumeName); }}>
+                <ResumeIcon name="email" size={19} />Email
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {generating && <div className="loading-overlay" aria-live="polite"><div className="spinner" /><p>Preparing your {generating.toUpperCase()}...</p></div>}
       {sectionPendingDelete && (
@@ -421,17 +525,26 @@ export default function FinalEditor() {
           </div>
         </div>
       )}
+      {showPreviewViewer && (
+        <ResumePreviewViewer
+          title={`${resumeName || 'My Resume'} preview`}
+          onClose={() => setShowPreviewViewer(false)}
+          renderResume={({ viewerScale }) => (
+            <ResumePreview viewerScale={viewerScale} className="resume-viewer-preview" onPageCountChange={setPageCount} />
+          )}
+        />
+      )}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   );
 }
 
-function ResumeReview({ findings }) {
+function ResumeReview({ findings, id }) {
   const visibleFindings = findings.slice(0, 3);
   return (
-    <section className="fe-resume-review" aria-labelledby="resume-review-title">
+    <section className="fe-resume-review" aria-labelledby={id}>
       <div className="fe-resume-review-heading">
-        <h2 id="resume-review-title">Resume review</h2>
+        <h2 id={id}>Resume review</h2>
         <span>{findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
       </div>
       {visibleFindings.length ? (
@@ -448,6 +561,29 @@ function ResumeReview({ findings }) {
       )}
       {findings.length > visibleFindings.length && <p className="fe-resume-review-more">+{findings.length - visibleFindings.length} more helpful checks</p>}
     </section>
+  );
+}
+
+function FinalizeActionButtons({ generating, onDownload, resumeName, onFinish, onPreview }) {
+  return (
+    <div className="fe-action-buttons">
+      {onPreview && (
+        <button className="btn btn-outline-dark fe-action-button fe-preview-button" onClick={onPreview}>
+          <ResumeIcon name="preview" size={18} />Preview resume
+        </button>
+      )}
+      <button className="btn btn-outline-dark fe-action-button fe-export-button fe-docx-button" onClick={() => onDownload('docx')} disabled={Boolean(generating)} aria-label="Download DOCX" title="Download DOCX">
+        <ResumeIcon name="download" size={18} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
+      </button>
+      <button className="btn btn-primary fe-action-button fe-export-button fe-pdf-button" onClick={() => onDownload('pdf')} disabled={Boolean(generating)} aria-label="Download PDF" title="Download a vector PDF of your resume">
+        <ResumeIcon name="download" size={18} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
+      </button>
+      <div className="fe-utility-actions" aria-label="Other resume actions">
+        <button className="btn btn-outline-dark fe-action-button" onClick={printResume}><ResumeIcon name="print" size={17} />Print</button>
+        <button className="btn btn-outline-dark fe-action-button" onClick={() => emailResume(resumeName)}><ResumeIcon name="email" size={17} />Email</button>
+      </div>
+      <button className="btn btn-ghost fe-action-button fe-finish-button" onClick={onFinish}><ResumeIcon name="finish" size={17} />Finish</button>
+    </div>
   );
 }
 

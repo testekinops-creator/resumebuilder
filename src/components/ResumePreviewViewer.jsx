@@ -23,16 +23,23 @@ export default function ResumePreviewViewer({
   footer,
 }) {
   const viewportRef = useRef(null);
+  const canvasRef = useRef(null);
   const [zoom, setZoom] = useState(100);
   const [fitMode, setFitMode] = useState('width');
 
   const fit = useCallback((mode) => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    // Leave room for the centered canvas padding so Fit width never creates a
-    // horizontal scrollbar at the default zoom.
-    const safeWidth = Math.max(1, viewport.clientWidth - 96);
-    const safeHeight = Math.max(1, viewport.clientHeight - 96);
+    const canvas = canvasRef.current;
+    const canvasStyle = canvas ? window.getComputedStyle(canvas) : null;
+    const horizontalPadding = canvasStyle
+      ? parseFloat(canvasStyle.paddingLeft) + parseFloat(canvasStyle.paddingRight)
+      : 0;
+    const verticalPadding = canvasStyle
+      ? parseFloat(canvasStyle.paddingTop) + parseFloat(canvasStyle.paddingBottom)
+      : 0;
+    const safeWidth = Math.max(1, viewport.clientWidth - horizontalPadding);
+    const safeHeight = Math.max(1, viewport.clientHeight - verticalPadding);
     const widthScale = safeWidth / A4_WIDTH;
     const nextZoom = mode === 'page'
       ? Math.min(widthScale, safeHeight / A4_HEIGHT) * 100
@@ -87,24 +94,26 @@ export default function ResumePreviewViewer({
         <header className="resume-viewer-toolbar">
           <h2>{title}</h2>
           <div className="resume-viewer-controls" role="toolbar" aria-label="Resume preview controls">
-            <button type="button" className="resume-viewer-icon-button" onClick={() => changeZoom(-10)} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out" title="Zoom out">
-              <ResumeIcon name="zoomOut" size={18} />
-            </button>
-            <output className="resume-viewer-zoom" aria-live="polite">{zoom}%</output>
-            <button type="button" className="resume-viewer-icon-button" onClick={() => changeZoom(10)} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in" title="Zoom in">
-              <ResumeIcon name="zoomIn" size={18} />
-            </button>
-            <span className="resume-viewer-divider" aria-hidden="true" />
-            <button type="button" className={`resume-viewer-control ${fitMode === 'width' ? 'is-active' : ''}`} onClick={() => fit('width')}>Fit width</button>
-            <button type="button" className={`resume-viewer-control ${fitMode === 'page' ? 'is-active' : ''}`} onClick={() => fit('page')}>Fit page</button>
-            <button type="button" className="resume-viewer-control resume-viewer-reset" onClick={resetZoom}>100%</button>
+            <div className="resume-viewer-scroll-controls">
+              <button type="button" className="resume-viewer-icon-button" onClick={() => changeZoom(-10)} disabled={zoom <= MIN_ZOOM} aria-label="Zoom out" title="Zoom out">
+                <ResumeIcon name="zoomOut" size={18} />
+              </button>
+              <output className="resume-viewer-zoom" aria-live="polite">{zoom}%</output>
+              <button type="button" className="resume-viewer-icon-button" onClick={() => changeZoom(10)} disabled={zoom >= MAX_ZOOM} aria-label="Zoom in" title="Zoom in">
+                <ResumeIcon name="zoomIn" size={18} />
+              </button>
+              <span className="resume-viewer-divider" aria-hidden="true" />
+              <button type="button" className={`resume-viewer-control ${fitMode === 'width' ? 'is-active' : ''}`} onClick={() => fit('width')}>Fit width</button>
+              <button type="button" className={`resume-viewer-control ${fitMode === 'page' ? 'is-active' : ''}`} onClick={() => fit('page')}>Fit page</button>
+              <button type="button" className="resume-viewer-control resume-viewer-reset" onClick={resetZoom}>100%</button>
+            </div>
             <button type="button" className="resume-viewer-icon-button resume-viewer-close" onClick={onClose} aria-label="Close preview" title="Close preview">
               <ResumeIcon name="close" size={19} />
             </button>
           </div>
         </header>
         <div className="resume-viewer-viewport" ref={viewportRef} tabIndex="0" aria-label="Scrollable resume preview">
-          <div className="resume-viewer-canvas">
+          <div className="resume-viewer-canvas" ref={canvasRef}>
             {renderResume?.({ viewerScale: zoom / 100 })}
           </div>
         </div>

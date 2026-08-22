@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { ResumeProvider } from './context/ResumeContext';
 import './index.css';
 
@@ -42,7 +42,7 @@ function LoadingFallback() {
   return (
     <div className="loading-overlay">
       <div className="spinner"></div>
-      <p style={{ color: 'var(--color-text-secondary)' }}>Loading...</p>
+      <p>Loading...</p>
     </div>
   );
 }
@@ -59,6 +59,7 @@ function App() {
             <Route path="/choose-template" element={<TemplateGallery />} />
             <Route path="/upload-resume" element={<UploadOrScratch />} />
             <Route path="/builder" element={<BuilderLayout />}>
+              <Route index element={<Navigate to="contact" replace />} />
               <Route path="contact" element={<ContactInfo />} />
               <Route path="purpose" element={<ResumePurpose />} />
               <Route path="work-history" element={<WorkHistoryForm />} />

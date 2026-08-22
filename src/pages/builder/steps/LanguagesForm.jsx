@@ -61,7 +61,7 @@ export default function LanguagesForm() {
           <ResumeIcon name="add" size={18} />Add new language
         </button>
       ) : (
-        <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', background: 'var(--color-surface-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)' }}>
+        <div className="language-editor-row" style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', background: 'var(--color-surface-secondary)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)' }}>
           <div style={{ flex: 1 }}>
             <label className="form-label">Language</label>
             <input className="form-input" value={newLang} onChange={e => setNewLang(e.target.value)} placeholder="e.g. English" autoFocus />

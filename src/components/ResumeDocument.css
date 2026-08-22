@@ -1,0 +1,129 @@
+.resume-document {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #111;
+}
+
+.resume-document .preview-container {
+  --preview-scale: 1 !important;
+  display: block !important;
+  position: static !important;
+  top: auto !important;
+  width: 210mm !important;
+  min-height: 297mm !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.resume-document .preview-page {
+  width: 210mm !important;
+  min-height: 297mm !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  animation: none !important;
+  overflow: visible !important;
+}
+
+.resume-document .preview-page::after {
+  display: none !important;
+}
+
+.resume-document img.print-asset-unavailable {
+  display: none !important;
+}
+
+.resume-document .tmpl-heading,
+.resume-document .tmpl-item-header,
+.resume-document .tmpl-item-sub {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.resume-document .tmpl-section,
+.resume-document .tmpl-item,
+.resume-document .template-creative,
+.resume-document .accountant-columns,
+.resume-document .developer-columns {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.resume-document .tmpl-content li,
+.resume-document .tmpl-content p {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.resume-document .classic-body,
+.resume-document .modern-body,
+.resume-document .professional-body,
+.resume-document .minimal-body,
+.resume-document .executive-body,
+.resume-document .creative-main,
+.resume-document .creative-sidebar,
+.resume-document .accountant-main,
+.resume-document .accountant-sidebar,
+.resume-document .developer-left,
+.resume-document .developer-right {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.resume-document::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  border: var(--print-page-border-width, 0px) solid var(--print-page-border-color, transparent);
+  pointer-events: none;
+}
+
+.resume-document,
+.resume-document * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Print stays independent from the responsive Finalize composition. The
+   document is laid out offscreen on screen, then becomes the only print root. */
+#resume-print-root {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  width: 210mm;
+  min-height: 297mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body.resume-printing > #root {
+    display: none !important;
+  }
+
+  body.resume-printing > #resume-print-root {
+    display: block !important;
+    position: static !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+    overflow: visible !important;
+  }
+}

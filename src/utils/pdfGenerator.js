@@ -23,6 +23,19 @@ const PAGE_WIDTH_TWIPS = 11906;
 const PAGE_HEIGHT_TWIPS = 16838;
 const PAGE_MARGIN_TWIPS = 720;
 
+export const RESUME_EXPORT_FORMATS = Object.freeze({
+  pdf: Object.freeze({
+    extension: 'pdf',
+    mimeType: 'application/pdf',
+    signature: [0x25, 0x50, 0x44, 0x46, 0x2D], // %PDF-
+  }),
+  docx: Object.freeze({
+    extension: 'docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    signature: [0x50, 0x4B], // ZIP container (PK)
+  }),
+});
+
 const SECTION_LABELS = {
   summary: 'Professional Summary',
   workHistory: 'Work History',
@@ -63,7 +76,7 @@ function filenameBase(state, resumeName) {
     .slice(0, 100) || 'Resume';
 }
 
-function downloadBlob(blob, filename) {
+export function downloadBlob(blob, filename) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;
@@ -72,6 +85,50 @@ function downloadBlob(blob, filename) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function exportError(message, stage, cause) {
+  const error = new Error(message, cause ? { cause } : undefined);
+  error.exportStage = stage;
+  return error;
+}
+
+async function validatedExportArtifact(blob, format, filename) {
+  const definition = RESUME_EXPORT_FORMATS[format];
+  if (!definition) throw exportError(`Unsupported resume format: ${format}`, 'validation');
+  if (!(blob instanceof Blob) || blob.size <= definition.signature.length) {
+    throw exportError(`The ${format.toUpperCase()} renderer returned an empty file.`, 'blob');
+  }
+
+  const signature = new Uint8Array(await blob.slice(0, definition.signature.length).arrayBuffer());
+  const matchesSignature = definition.signature.every((byte, index) => signature[index] === byte);
+  if (!matchesSignature) {
+    throw exportError(`The export service returned an invalid ${format.toUpperCase()} file.`, 'blob');
+  }
+
+  const normalizedBlob = blob.type === definition.mimeType
+    ? blob
+    : new Blob([blob], { type: definition.mimeType });
+  const file = typeof File === 'function'
+    ? new File([normalizedBlob], filename, { type: definition.mimeType, lastModified: Date.now() })
+    : null;
+
+  return {
+    blob: normalizedBlob,
+    file,
+    filename,
+    format,
+    mimeType: definition.mimeType,
+    size: normalizedBlob.size,
+  };
+}
+
+export function downloadResumeExport(artifact) {
+  if (!artifact?.blob || !artifact?.filename) {
+    throw exportError('A prepared resume file is required before downloading.', 'download');
+  }
+  downloadBlob(artifact.blob, artifact.filename);
+  return artifact;
 }
 
 function richTextBlocks(html) {
@@ -118,9 +175,26 @@ function hasExportableContent(state) {
   );
 }
 
-async function waitForRenderedResume() {
-  if (document.fonts?.ready) await document.fonts.ready;
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+async function settleWithin(promise, timeoutMs = 5000) {
+  if (!promise || typeof promise.then !== 'function') return;
+  let timeout;
+  await Promise.race([
+    Promise.resolve(promise).catch(() => undefined),
+    new Promise(resolve => {
+      timeout = globalThis.setTimeout(resolve, timeoutMs);
+    }),
+  ]);
+  globalThis.clearTimeout(timeout);
+}
+
+async function waitForRenderedResume(timeoutMs = 5000) {
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    await settleWithin(document.fonts.ready, timeoutMs);
+  }
+  const nextFrame = typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame
+    : callback => globalThis.setTimeout(callback, 0);
+  await settleWithin(new Promise(resolve => nextFrame(() => nextFrame(resolve))), timeoutMs);
 }
 
 function hexColor(value, fallback = '6B21A8') {
@@ -409,21 +483,37 @@ export function addVectorResumePDF(state, resumeName) {
 }
 
 /**
- * Downloads a Chromium-rendered PDF of the same preview route used by the UI.
- * The renderer receives the resume state directly and retains browser-native,
- * selectable vector text without showing a print dialog.
+ * Prepares a Chromium-rendered PDF from the same ResumePreview document used
+ * by the editor. Keeping preparation separate from download lets Email and
+ * native file sharing reuse the exact same validated artifact.
  */
-export async function generatePDF({ state, resumeName }) {
+export async function preparePDFExport({
+  state,
+  resumeName,
+  fetchImpl = globalThis.fetch,
+  requestTimeoutMs = 55000,
+  signal,
+}) {
   if (!hasExportableContent(state)) {
-    throw new Error('Add at least one resume detail before downloading.');
+    throw exportError('Add at least one resume detail before downloading.', 'validation');
   }
+  if (typeof fetchImpl !== 'function') throw exportError('The PDF export service is unavailable.', 'request');
 
   await waitForRenderedResume();
   const filename = `${filenameBase(state, resumeName)}.pdf`;
-  const requestPdf = () => fetch('/api/resume-pdf', {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const relayAbort = () => controller?.abort(signal?.reason);
+  if (signal?.aborted) relayAbort();
+  else signal?.addEventListener?.('abort', relayAbort, { once: true });
+  const requestTimeout = controller
+    ? globalThis.setTimeout(() => controller.abort(), requestTimeoutMs)
+    : undefined;
+  const requestSignal = controller?.signal || signal;
+  const requestPdf = () => fetchImpl('/api/resume-pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ state, resumeName }),
+    ...(requestSignal ? { signal: requestSignal } : {}),
   });
 
   // The server renders /pdf-export, which is the same ResumePreview component
@@ -431,27 +521,39 @@ export async function generatePDF({ state, resumeName }) {
   // here: it would turn a sidebar or header template into a different resume.
   let response;
   try {
-    response = await requestPdf();
-    if (response.status >= 500) {
-      await new Promise(resolve => window.setTimeout(resolve, 350));
+    try {
       response = await requestPdf();
+      if ([502, 503, 504].includes(response.status)) {
+        await new Promise(resolve => globalThis.setTimeout(resolve, 350));
+        response = await requestPdf();
+      }
+    } catch (error) {
+      const message = error?.name === 'AbortError'
+        ? 'The PDF renderer took too long to respond. Please try again.'
+        : 'The PDF renderer is starting or unavailable. Please retry in a moment.';
+      throw exportError(message, 'request', error);
     }
-  } catch {
-    throw new Error('The PDF renderer is starting or unavailable. Please retry in a moment.');
-  }
 
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null);
-    throw new Error(detail?.error || 'Could not create the selected-template PDF. Please try again.');
-  }
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null);
+      const error = exportError(detail?.error || 'Could not create the selected-template PDF. Please try again.', detail?.stage || 'render');
+      error.status = response.status;
+      throw error;
+    }
 
-  const pdf = await response.blob();
-  if (pdf.type && pdf.type !== 'application/pdf') {
-    throw new Error('The export service returned an invalid PDF.');
+    const pdf = await response.blob();
+    return validatedExportArtifact(pdf, 'pdf', filename);
+  } finally {
+    globalThis.clearTimeout(requestTimeout);
+    signal?.removeEventListener?.('abort', relayAbort);
   }
+}
 
-  downloadBlob(pdf, filename);
-  return { filename, directDownload: true };
+/** Downloads the validated PDF artifact. */
+export async function generatePDF(options) {
+  const artifact = await preparePDFExport(options);
+  downloadResumeExport(artifact);
+  return { ...artifact, directDownload: true };
 }
 
 const DOCX_CONTENT_WIDTH = PAGE_WIDTH_TWIPS - PAGE_MARGIN_TWIPS * 2;
@@ -1121,10 +1223,10 @@ function creativeDocxChildren(state, { font, color, base }) {
   });
 }
 
-/** Creates an editable DOCX that preserves the selected template's structure. */
-export async function generateDOCX({ state, resumeName }) {
+/** Prepares an editable DOCX that preserves the selected template's structure. */
+export async function prepareDOCXExport({ state, resumeName }) {
   if (!hasExportableContent(state)) {
-    throw new Error('Add at least one resume detail before downloading.');
+    throw exportError('Add at least one resume detail before downloading.', 'validation');
   }
 
   const color = hexColor(state.design?.colorScheme || '6B21A8');
@@ -1164,16 +1266,129 @@ export async function generateDOCX({ state, resumeName }) {
   });
   const blob = await Packer.toBlob(documentFile);
   const filename = `${filenameBase(state, resumeName)}.docx`;
-  downloadBlob(blob, filename);
-  return { filename };
+  return validatedExportArtifact(blob, 'docx', filename);
 }
 
-export function printResume() {
-  window.print();
+/** Creates and downloads an editable DOCX. */
+export async function generateDOCX(options) {
+  const artifact = await prepareDOCXExport(options);
+  downloadResumeExport(artifact);
+  return artifact;
 }
 
-export function emailResume(resumeName) {
-  const subject = encodeURIComponent(`Resume - ${resumeName}`);
-  const body = encodeURIComponent('Hi,\n\nPlease find my resume attached.\n\nBest regards');
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+export async function prepareResumeExport({ format = 'pdf', ...options }) {
+  if (format === 'pdf') return preparePDFExport(options);
+  if (format === 'docx') return prepareDOCXExport(options);
+  throw exportError(`Unsupported resume format: ${format}`, 'validation');
+}
+
+async function waitForPrintImage(image, timeoutMs) {
+  const source = image.currentSrc || image.src;
+  if (!source) return;
+
+  let loaded = image.complete && image.naturalWidth > 0;
+  if (!image.complete) {
+    loaded = await new Promise(resolve => {
+      let timeout;
+      let settled = false;
+      const finish = success => {
+        if (settled) return;
+        settled = true;
+        globalThis.clearTimeout(timeout);
+        image.removeEventListener('load', handleLoad);
+        image.removeEventListener('error', handleError);
+        resolve(success);
+      };
+      const handleLoad = () => finish(image.naturalWidth > 0);
+      const handleError = () => finish(false);
+
+      image.addEventListener('load', handleLoad);
+      image.addEventListener('error', handleError);
+      timeout = globalThis.setTimeout(() => finish(false), timeoutMs);
+
+      // Close the race where the image settles after the first complete check
+      // but before the listeners are registered.
+      if (image.complete) finish(image.naturalWidth > 0);
+    });
+  }
+
+  if (!loaded || image.naturalWidth <= 0) {
+    image.classList.add('print-asset-unavailable');
+    return;
+  }
+
+  image.classList.remove('print-asset-unavailable');
+  // A loaded image with intrinsic dimensions is printable even when a
+  // browser declines decode() for an otherwise supported source type.
+  await settleWithin(image.decode?.(), timeoutMs);
+}
+
+async function waitForPrintAssets(root, timeoutMs) {
+  if (!root) throw exportError('The printable resume document is unavailable.', 'print-document');
+  if (document.fonts?.ready) await settleWithin(document.fonts.ready, timeoutMs);
+
+  const images = [...root.querySelectorAll('img')];
+  await Promise.all(images.map(image => waitForPrintImage(image, timeoutMs)));
+  await waitForRenderedResume(timeoutMs);
+
+  const page = root.querySelector('.preview-page');
+  const bounds = page?.getBoundingClientRect();
+  if (!page || !compactText(page.textContent) || !bounds || bounds.width <= 0 || bounds.height <= 0) {
+    throw exportError('The printable resume did not finish rendering.', 'print-document');
+  }
+}
+
+/** Prints only the dedicated resume document mounted outside the application UI. */
+export async function printResume({
+  selector = '#resume-print-root',
+  assetTimeoutMs = 5000,
+  afterPrintTimeoutMs = 60000,
+} = {}) {
+  const root = document.querySelector(selector);
+  await waitForPrintAssets(root, assetTimeoutMs);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let fallbackTimer;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener('afterprint', finish);
+      resolve();
+    };
+
+    try {
+      window.addEventListener('afterprint', finish, { once: true });
+      window.print();
+      // Browsers that block print or omit afterprint still release the UI.
+      if (!settled) fallbackTimer = window.setTimeout(finish, afterPrintTimeoutMs);
+    } catch (error) {
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener('afterprint', finish);
+      reject(exportError('The browser could not open the print dialog.', 'print-dialog', error));
+    }
+  });
+}
+
+export function buildEmailDraft({ resumeName, filename, attachmentIncluded = false }) {
+  const cleanName = compactText(resumeName) || 'Resume';
+  const cleanFilename = compactText(filename) || `${cleanName}.pdf`;
+  const subject = `Resume - ${cleanName}`;
+  const attachmentLine = attachmentIncluded
+    ? `Please find ${cleanFilename} attached.`
+    : `Please attach ${cleanFilename} before sending this email.`;
+  const body = `Hi,\n\n${attachmentLine}\n\nBest regards`;
+  return {
+    subject,
+    body,
+    url: `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+  };
+}
+
+/** Honest mail-client fallback; browsers cannot add attachments to mailto URLs. */
+export function emailResume(resumeName, filename) {
+  const draft = buildEmailDraft({ resumeName, filename, attachmentIncluded: false });
+  window.location.href = draft.url;
+  return draft;
 }

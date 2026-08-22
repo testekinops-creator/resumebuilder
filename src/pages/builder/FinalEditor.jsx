@@ -5,9 +5,11 @@ import { COLOR_SCHEMES, FONT_FAMILIES, TEMPLATES } from '../../data/templates';
 import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
 import ResumePreviewViewer from '../../components/ResumePreviewViewer';
+import PrintableResume from '../../components/PrintableResume';
+import EmailResumeDialog from '../../components/EmailResumeDialog';
 import { getOrderedSectionIds, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
 import { getResumeQualityReview } from '../../utils/resumeQuality';
-import { generateDOCX, generatePDF, printResume, emailResume } from '../../utils/pdfGenerator';
+import { generateDOCX, generatePDF, printResume } from '../../utils/pdfGenerator';
 import {
   dismissFinalizeWelcome,
   exportResumeJSON,
@@ -28,8 +30,6 @@ const PAGE_BORDER_OPTIONS = [
   { id: 'thick', label: 'Thick', description: '3pt accent border' },
 ];
 
-const PRINT_BORDER_WIDTHS = { none: '0px', thin: '1px', medium: '2px', thick: '4px' };
-
 export default function FinalEditor() {
   // Finalize can be opened directly, outside a page that exposes the theme
   // switcher. Initializing the hook here keeps the panel and live thumbnails
@@ -39,9 +39,6 @@ export default function FinalEditor() {
   const location = useLocation();
   const navigate = useNavigate();
   const design = state.design;
-  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
-  const printAccentColor = design.colorScheme || selectedTemplate?.defaultColor || '#6B21A8';
-  const printPageBorder = PRINT_BORDER_WIDTHS[design.pageBorder] ?? PRINT_BORDER_WIDTHS.none;
   const [activeTab, setActiveTab] = useState('templates');
   const [zoom, setZoom] = useState(100);
   const [resumeName, setResumeName] = useState(state.meta.name ?? 'My Resume');
@@ -52,7 +49,9 @@ export default function FinalEditor() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPreviewViewer, setShowPreviewViewer] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [generating, setGenerating] = useState('');
+  const [notification, setNotification] = useState(null);
   const [selectedSection, setSelectedSection] = useState(() => location.state?.focusSection || '');
   const [hoveredSection, setHoveredSection] = useState('');
   const [focusSection, setFocusSection] = useState(() => location.state?.focusSection || '');
@@ -64,6 +63,11 @@ export default function FinalEditor() {
   const [pageCount, setPageCount] = useState(1);
   const previewRef = useRef(null);
   const sectionsPanelRef = useRef(null);
+  const exportJobRef = useRef('');
+
+  const showNotification = useCallback(({ type = 'error', title, message }) => {
+    setNotification({ id: Date.now(), type, title, message });
+  }, []);
 
   const selectPreviewSection = useCallback((sectionId) => {
     setSelectedSection(sectionId);
@@ -112,8 +116,17 @@ export default function FinalEditor() {
     };
   }, [showMobileActions]);
 
+  useEffect(() => {
+    if (!notification) return undefined;
+    const timeout = window.setTimeout(() => setNotification(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [notification]);
+
   const handleDownload = async (format = 'pdf') => {
     const exportFormat = typeof format === 'string' ? format : 'pdf';
+    if (!['pdf', 'docx'].includes(exportFormat) || exportJobRef.current) return;
+
+    exportJobRef.current = exportFormat;
     setGenerating(exportFormat);
     try {
       if (exportFormat === 'docx') {
@@ -122,9 +135,46 @@ export default function FinalEditor() {
         await generatePDF({ state, resumeName });
       }
     } catch (error) {
-      console.error(`Unable to generate ${exportFormat}:`, error);
-      window.alert(error?.message || `Unable to generate the ${exportFormat.toUpperCase()}. Please try again.`);
+      console.error('Resume export failed', {
+        format: exportFormat,
+        template: state.meta?.templateId,
+        resumeId: state.meta?.id,
+        stage: error?.exportStage || 'unknown',
+        status: error?.status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      showNotification({
+        title: `${exportFormat.toUpperCase()} download failed`,
+        message: `We couldn't generate your ${exportFormat.toUpperCase()}. Your resume is still saved. Please try again.`,
+      });
     } finally {
+      exportJobRef.current = '';
+      setGenerating('');
+    }
+  };
+
+  const handlePrint = async () => {
+    if (exportJobRef.current) return;
+
+    exportJobRef.current = 'print';
+    setGenerating('print');
+    try {
+      document.body.classList.add('resume-printing');
+      await printResume();
+    } catch (error) {
+      console.error('Resume print failed', {
+        template: state.meta?.templateId,
+        resumeId: state.meta?.id,
+        stage: error?.exportStage || 'unknown',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      showNotification({
+        title: 'Print preview failed',
+        message: "We couldn't prepare your resume for printing. Your resume is still saved. Please try again.",
+      });
+    } finally {
+      document.body.classList.remove('resume-printing');
+      exportJobRef.current = '';
       setGenerating('');
     }
   };
@@ -196,10 +246,7 @@ export default function FinalEditor() {
   const scoreColor = completeness >= 80 ? 'var(--color-success)' : completeness >= 50 ? 'var(--color-warning)' : 'var(--color-error)';
 
   return (
-    <div className="final-editor" style={{
-      '--print-page-border-width': printPageBorder,
-      '--print-page-border-color': printAccentColor,
-    }}>
+    <div className="final-editor">
       <header className="fe-topbar">
         <div className="fe-topbar-left">
           <Link to="/builder/smart-apply" className="fe-back-link"><ResumeIcon name="arrowLeft" size={16} />Back</Link>
@@ -408,7 +455,8 @@ export default function FinalEditor() {
           <FinalizeActionButtons
             generating={generating}
             onDownload={handleDownload}
-            resumeName={resumeName}
+            onPrint={handlePrint}
+            onEmail={() => setShowEmailDialog(true)}
             onFinish={() => setShowAuthModal(true)}
           />
         </aside>
@@ -429,7 +477,8 @@ export default function FinalEditor() {
         <FinalizeActionButtons
           generating={generating}
           onDownload={handleDownload}
-          resumeName={resumeName}
+          onPrint={handlePrint}
+          onEmail={() => setShowEmailDialog(true)}
           onFinish={() => setShowAuthModal(true)}
           onPreview={() => setShowPreviewViewer(true)}
         />
@@ -469,10 +518,10 @@ export default function FinalEditor() {
               <button type="button" className="btn btn-primary" onClick={() => { setShowMobileActions(false); handleDownload('pdf'); }} disabled={Boolean(generating)}>
                 <ResumeIcon name="download" size={19} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
               </button>
-              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); printResume(); }}>
-                <ResumeIcon name="print" size={19} />Print
+              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); handlePrint(); }} disabled={Boolean(generating)}>
+                <ResumeIcon name="print" size={19} />{generating === 'print' ? 'Preparing...' : 'Print'}
               </button>
-              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); emailResume(resumeName); }}>
+              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); setShowEmailDialog(true); }} disabled={Boolean(generating)}>
                 <ResumeIcon name="email" size={19} />Email
               </button>
             </div>
@@ -480,7 +529,7 @@ export default function FinalEditor() {
         </div>
       )}
 
-      {generating && <div className="loading-overlay" aria-live="polite"><div className="spinner" /><p>Preparing your {generating.toUpperCase()}...</p></div>}
+      {generating && <div className="loading-overlay" aria-live="polite"><div className="spinner" /><p>{generating === 'print' ? 'Preparing print preview...' : `Preparing your ${generating.toUpperCase()}...`}</p></div>}
       {sectionPendingDelete && (
         <SectionDialog
           title={`Delete ${getSectionDisplayName(state, sectionPendingDelete)}?`}
@@ -534,6 +583,26 @@ export default function FinalEditor() {
           )}
         />
       )}
+      <PrintableResume state={state} />
+      {showEmailDialog && (
+        <EmailResumeDialog
+          state={state}
+          resumeName={resumeName}
+          onClose={() => setShowEmailDialog(false)}
+        />
+      )}
+      {notification && (
+        <div className="toast-container" role="region" aria-label="Notifications">
+          <div className={`toast toast-${notification.type}`} role={notification.type === 'error' ? 'alert' : 'status'}>
+            <ResumeIcon name={notification.type === 'error' ? 'info' : 'finish'} size={20} />
+            <div className="toast-message">
+              <strong>{notification.title}</strong>
+              <span>{notification.message}</span>
+            </div>
+            <button type="button" className="toast-close" onClick={() => setNotification(null)} aria-label="Dismiss notification">×</button>
+          </div>
+        </div>
+      )}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   );
@@ -564,7 +633,7 @@ function ResumeReview({ findings, id }) {
   );
 }
 
-function FinalizeActionButtons({ generating, onDownload, resumeName, onFinish, onPreview }) {
+function FinalizeActionButtons({ generating, onDownload, onPrint, onEmail, onFinish, onPreview }) {
   return (
     <div className="fe-action-buttons">
       {onPreview && (
@@ -579,8 +648,8 @@ function FinalizeActionButtons({ generating, onDownload, resumeName, onFinish, o
         <ResumeIcon name="download" size={18} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
       </button>
       <div className="fe-utility-actions" aria-label="Other resume actions">
-        <button className="btn btn-outline-dark fe-action-button" onClick={printResume}><ResumeIcon name="print" size={17} />Print</button>
-        <button className="btn btn-outline-dark fe-action-button" onClick={() => emailResume(resumeName)}><ResumeIcon name="email" size={17} />Email</button>
+        <button className="btn btn-outline-dark fe-action-button" onClick={onPrint} disabled={Boolean(generating)}><ResumeIcon name="print" size={17} />{generating === 'print' ? 'Preparing...' : 'Print'}</button>
+        <button className="btn btn-outline-dark fe-action-button" onClick={onEmail} disabled={Boolean(generating)}><ResumeIcon name="email" size={17} />Email</button>
       </div>
       <button className="btn btn-ghost fe-action-button fe-finish-button" onClick={onFinish}><ResumeIcon name="finish" size={17} />Finish</button>
     </div>

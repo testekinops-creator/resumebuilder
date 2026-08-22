@@ -784,11 +784,30 @@ button:disabled .resume-icon {
 .toast-info { border-color: var(--color-info); }
 
 .toast-message {
+  display: grid;
+  gap: var(--space-1);
   flex: 1;
   font-size: var(--font-size-sm);
 }
 
+.toast-message strong {
+  color: var(--color-text-primary);
+}
+
+.toast-message span {
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
 .toast-close {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: calc(var(--space-2) * -1);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--color-text-tertiary);
   font-size: var(--font-size-lg);
   line-height: 1;

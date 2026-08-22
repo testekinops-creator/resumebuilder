@@ -1,0 +1,341 @@
+.email-resume-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 400);
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 40px);
+  overflow-y: auto;
+  background: rgba(8, 15, 30, 0.7);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.email-resume-dialog {
+  width: min(100%, 620px);
+  max-height: min(88vh, 780px);
+  overflow-y: auto;
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl, 24px);
+  color: var(--text-primary);
+  background: var(--surface);
+  box-shadow: var(--shadow-2xl, 0 25px 50px rgba(0, 0, 0, 0.25));
+  outline: none;
+}
+
+.email-resume-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+}
+
+.email-resume-dialog__header h2 {
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: clamp(1.45rem, 4vw, 1.8rem);
+  line-height: 1.2;
+}
+
+.email-resume-dialog__eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-bold, 700);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.email-resume-dialog__close {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full, 9999px);
+  color: var(--text-secondary);
+  background: var(--surface-hover);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.email-resume-dialog__close:hover {
+  border-color: var(--input-border);
+  color: var(--text-primary);
+  background: var(--surface-selected);
+}
+
+.email-resume-dialog__description {
+  margin: var(--space-3, 12px) 0 var(--space-6, 24px);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: 1.55;
+}
+
+.email-resume-dialog__formats {
+  min-width: 0;
+  margin: 0 0 var(--space-5, 20px);
+  padding: 0;
+  border: 0;
+}
+
+.email-resume-dialog__formats legend {
+  margin-bottom: var(--space-2, 8px);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.email-resume-dialog__format-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3, 12px);
+}
+
+.email-resume-dialog__format {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg, 12px);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.email-resume-dialog__format:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.email-resume-dialog__format.is-selected {
+  border-color: var(--accent);
+  background: var(--surface-selected);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.email-resume-dialog__format input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.email-resume-dialog__format-icon {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.email-resume-dialog__format strong,
+.email-resume-dialog__format small {
+  display: block;
+}
+
+.email-resume-dialog__format strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.email-resume-dialog__format small {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs, 0.75rem);
+  line-height: 1.4;
+}
+
+.email-resume-dialog__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg, 12px);
+  font: inherit;
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-semibold, 600);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.email-resume-dialog__button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.email-resume-dialog__button--primary {
+  width: 100%;
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+.email-resume-dialog__button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.email-resume-dialog__button--secondary {
+  flex: 1 1 180px;
+  color: var(--text-primary);
+  border-color: var(--input-border);
+  background: var(--input-bg);
+}
+
+.email-resume-dialog__button--secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.email-resume-dialog__button:disabled {
+  color: var(--disabled-text);
+  border-color: var(--border);
+  background: var(--disabled-bg);
+  cursor: not-allowed;
+}
+
+.email-resume-dialog :is(button, input):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.email-resume-dialog__prepared {
+  display: grid;
+  gap: var(--space-4, 16px);
+}
+
+.email-resume-dialog__file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.email-resume-dialog__file > span {
+  min-width: 0;
+}
+
+.email-resume-dialog__file strong,
+.email-resume-dialog__file small {
+  display: block;
+}
+
+.email-resume-dialog__file strong {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.email-resume-dialog__file small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs, 0.75rem);
+}
+
+.email-resume-dialog__share-option > p,
+.email-resume-dialog__fallback-heading p,
+.email-resume-dialog__hint {
+  margin: var(--space-2, 8px) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs, 0.75rem);
+  line-height: 1.45;
+}
+
+.email-resume-dialog__fallback {
+  padding-top: var(--space-4, 16px);
+  border-top: 1px solid var(--border);
+}
+
+.email-resume-dialog__fallback-heading h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-base, 1rem);
+}
+
+.email-resume-dialog__fallback-heading p {
+  margin-bottom: var(--space-3, 12px);
+}
+
+.email-resume-dialog__fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+}
+
+.email-resume-dialog__message {
+  margin: var(--space-4, 16px) 0 0;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-radius: var(--radius-lg, 12px);
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: 1.45;
+}
+
+.email-resume-dialog__message--status {
+  border: 1px solid color-mix(in srgb, var(--color-success) 45%, var(--border));
+  color: var(--text-primary);
+  background: var(--color-success-light);
+}
+
+.email-resume-dialog__message--error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2, 8px);
+  border: 1px solid color-mix(in srgb, var(--color-error) 55%, var(--border));
+  color: var(--text-primary);
+  background: var(--color-error-light);
+}
+
+.email-resume-dialog__message--error .resume-icon {
+  flex: 0 0 auto;
+  color: var(--color-error);
+}
+
+@media (max-width: 560px) {
+  .email-resume-dialog-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .email-resume-dialog {
+    width: 100%;
+    max-height: min(92dvh, 860px);
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .email-resume-dialog__format-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .email-resume-dialog__fallback-actions {
+    flex-direction: column;
+  }
+
+  .email-resume-dialog__button--secondary {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .email-resume-dialog *,
+  .email-resume-dialog *::before,
+  .email-resume-dialog *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

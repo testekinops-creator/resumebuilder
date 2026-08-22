@@ -8,12 +8,14 @@
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test",
+    "test:pdf-smoke": "node scripts/smokePdfExports.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@sparticuz/chromium": "^149.0.0",
     "@tiptap/core": "^3.27.3",
     "@tiptap/extension-link": "^3.27.3",
     "@tiptap/extension-placeholder": "^3.27.3",

@@ -24,8 +24,11 @@ export default function ResumePreviewViewer({
 }) {
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
+  const pinchRef = useRef(null);
   const [zoom, setZoom] = useState(100);
   const [fitMode, setFitMode] = useState('width');
+  const [pageCount, setPageCount] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fit = useCallback((mode) => {
     const viewport = viewportRef.current;
@@ -44,7 +47,9 @@ export default function ResumePreviewViewer({
     const nextZoom = mode === 'page'
       ? Math.min(widthScale, safeHeight / A4_HEIGHT) * 100
       : widthScale * 100;
-    setZoom(clampZoom(nextZoom));
+    // Fit modes must never round upward: even a sub-percent overshoot can add
+    // a horizontal scrollbar at narrow phone and laptop widths.
+    setZoom(clampZoom(Math.floor(nextZoom)));
     setFitMode(mode);
   }, []);
 
@@ -58,6 +63,43 @@ export default function ResumePreviewViewer({
     if (fitMode) fit(fitMode);
     return () => resizeObserver.disconnect();
   }, [fit, fitMode]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    const measurePages = () => {
+      const page = canvas.querySelector('.preview-page');
+      const nextCount = Math.max(1, Math.ceil((page?.scrollHeight || A4_HEIGHT) / A4_HEIGHT));
+      setPageCount(nextCount);
+      setCurrentPage(current => Math.min(current, nextCount));
+    };
+
+    measurePages();
+    const observer = new ResizeObserver(measurePages);
+    observer.observe(canvas);
+    const page = canvas.querySelector('.preview-page');
+    if (page) observer.observe(page);
+    return () => observer.disconnect();
+  }, [renderResume, zoom]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    const updateCurrentPage = () => {
+      const canvas = canvasRef.current;
+      const canvasStyle = canvas ? window.getComputedStyle(canvas) : null;
+      const paddingTop = canvasStyle ? parseFloat(canvasStyle.paddingTop) || 0 : 0;
+      const pageHeight = A4_HEIGHT * (zoom / 100);
+      const relativeTop = Math.max(0, viewport.scrollTop - paddingTop);
+      setCurrentPage(Math.min(pageCount, Math.max(1, Math.floor((relativeTop + pageHeight * 0.35) / pageHeight) + 1)));
+    };
+
+    viewport.addEventListener('scroll', updateCurrentPage, { passive: true });
+    updateCurrentPage();
+    return () => viewport.removeEventListener('scroll', updateCurrentPage);
+  }, [pageCount, zoom]);
 
   useEffect(() => {
     const closeOnEscape = (event) => {
@@ -88,6 +130,43 @@ export default function ResumePreviewViewer({
     setZoom(100);
   };
 
+  const goToPage = (pageNumber) => {
+    const viewport = viewportRef.current;
+    const canvas = canvasRef.current;
+    if (!viewport || !canvas) return;
+    const nextPage = Math.min(pageCount, Math.max(1, pageNumber));
+    const canvasStyle = window.getComputedStyle(canvas);
+    const paddingTop = parseFloat(canvasStyle.paddingTop) || 0;
+    viewport.scrollTo({
+      top: paddingTop + ((nextPage - 1) * A4_HEIGHT * (zoom / 100)),
+      behavior: 'smooth',
+    });
+    setCurrentPage(nextPage);
+  };
+
+  const touchDistance = (touches) => {
+    const first = touches[0];
+    const second = touches[1];
+    return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  };
+
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 2) return;
+    pinchRef.current = { distance: touchDistance(event.touches), zoom };
+    setFitMode('');
+  };
+
+  const handleTouchMove = (event) => {
+    if (event.touches.length !== 2 || !pinchRef.current) return;
+    event.preventDefault();
+    const scale = touchDistance(event.touches) / Math.max(1, pinchRef.current.distance);
+    setZoom(clampZoom(pinchRef.current.zoom * scale));
+  };
+
+  const handleTouchEnd = (event) => {
+    if (event.touches.length < 2) pinchRef.current = null;
+  };
+
   return (
     <div className="resume-viewer-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="resume-viewer" role="dialog" aria-modal="true" aria-label={title} onMouseDown={event => event.stopPropagation()}>
@@ -106,13 +185,30 @@ export default function ResumePreviewViewer({
               <button type="button" className={`resume-viewer-control ${fitMode === 'width' ? 'is-active' : ''}`} onClick={() => fit('width')}>Fit width</button>
               <button type="button" className={`resume-viewer-control ${fitMode === 'page' ? 'is-active' : ''}`} onClick={() => fit('page')}>Fit page</button>
               <button type="button" className="resume-viewer-control resume-viewer-reset" onClick={resetZoom}>100%</button>
+              <span className="resume-viewer-divider" aria-hidden="true" />
+              <button type="button" className="resume-viewer-icon-button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous resume page" title="Previous page">
+                <ResumeIcon name="arrowLeft" size={17} />
+              </button>
+              <output className="resume-viewer-page" aria-live="polite">Page {currentPage} of {pageCount}</output>
+              <button type="button" className="resume-viewer-icon-button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= pageCount} aria-label="Next resume page" title="Next page">
+                <ResumeIcon name="arrowRight" size={17} />
+              </button>
             </div>
             <button type="button" className="resume-viewer-icon-button resume-viewer-close" onClick={onClose} aria-label="Close preview" title="Close preview">
               <ResumeIcon name="close" size={19} />
             </button>
           </div>
         </header>
-        <div className="resume-viewer-viewport" ref={viewportRef} tabIndex="0" aria-label="Scrollable resume preview">
+        <div
+          className="resume-viewer-viewport"
+          ref={viewportRef}
+          tabIndex="0"
+          aria-label="Scrollable resume preview"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           <div className="resume-viewer-canvas" ref={canvasRef}>
             {renderResume?.({ viewerScale: zoom / 100 })}
           </div>

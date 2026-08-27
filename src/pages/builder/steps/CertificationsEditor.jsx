@@ -59,6 +59,7 @@ export default function CertificationsEditor() {
 
         <div className="panel">
           <RichTextEditor
+            fieldId="certifications-content"
             content={content}
             onChange={(html) => {
               setContent(html);

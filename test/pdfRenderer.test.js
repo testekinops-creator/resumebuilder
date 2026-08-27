@@ -47,16 +47,29 @@ test('server validator normalizes unsafe design colors and bounds section arrays
   const normalized = validatePdfExportPayload({
     state: {
       meta: { templateId: 'timeline' },
-      design: { colorScheme: 'url(http://169.254.169.254/latest/meta-data)' },
+      design: {
+        colorScheme: 'url(http://169.254.169.254/latest/meta-data)',
+        headingColor: 'expression(alert(1))',
+        sidebarColor: 'red',
+        dividerColor: '#12345g',
+        themePreset: 'unknown-preset',
+      },
       workHistory: [],
     },
   });
   assert.equal(normalized.state.design.colorScheme, '#2E3A4D');
+  assert.match(normalized.state.design.headingColor, /^#[\dA-F]{6}$/i);
+  assert.match(normalized.state.design.sidebarColor, /^#[\dA-F]{6}$/i);
+  assert.match(normalized.state.design.dividerColor, /^#[\dA-F]{6}$/i);
+  assert.equal(normalized.state.design.themePreset, 'default');
 
   const validColor = validatePdfExportPayload({
-    state: { meta: { templateId: 'classic' }, design: { colorScheme: '#12aBcD' } },
+    state: { meta: { templateId: 'classic' }, design: { colorScheme: '#12aBcD', headingColor: '#010203', sidebarColor: '#AABBCC', dividerColor: '#dDeEfF' } },
   });
   assert.equal(validColor.state.design.colorScheme, '#12aBcD');
+  assert.equal(validColor.state.design.headingColor, '#010203');
+  assert.equal(validColor.state.design.sidebarColor, '#AABBCC');
+  assert.equal(validColor.state.design.dividerColor, '#dDeEfF');
 
   assert.throws(
     () => validatePdfExportPayload({

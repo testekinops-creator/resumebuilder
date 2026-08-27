@@ -108,6 +108,15 @@
   text-align: center;
 }
 
+.resume-viewer-page {
+  min-width: 86px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .resume-viewer-divider {
   width: 1px;
   height: 24px;
@@ -124,9 +133,11 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
   background: color-mix(in srgb, var(--color-secondary) 88%, #000);
+  touch-action: pan-x pan-y;
 }
 
 .resume-viewer-canvas {
+  box-sizing: border-box;
   display: flex;
   align-items: flex-start;
   justify-content: center;

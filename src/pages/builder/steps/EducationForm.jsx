@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../../context/ResumeContext';
 import { DEGREE_OPTIONS } from '../../../data/templates';
@@ -19,6 +19,15 @@ export default function EducationForm() {
   });
   const [errors, setErrors] = useState({});
   const [showEmptyModal, setShowEmptyModal] = useState(false);
+  const courseworkRef = useRef(null);
+
+  useEffect(() => {
+    const requestedField = location.state?.focusField || window.sessionStorage.getItem('resumeBuilder_focusQualityField');
+    if (requestedField !== `education-coursework-${editingEducation?.id || 'current'}`) return;
+    window.sessionStorage.removeItem('resumeBuilder_focusQualityField');
+    courseworkRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => courseworkRef.current?.focus(), 250);
+  }, [editingEducation?.id, location.state?.focusField]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -99,7 +108,7 @@ export default function EducationForm() {
 
         <div className="form-group">
           <label className="form-label" htmlFor="coursework">Relevant Coursework (optional)</label>
-          <textarea id="coursework" className="form-input" rows={3}
+          <textarea id="coursework" ref={courseworkRef} className="form-input" rows={3} spellCheck="true"
             placeholder="e.g. Data Structures, Algorithms, Web Development"
             value={form.coursework} onChange={e => handleChange('coursework', e.target.value)} maxLength={1000} />
         </div>

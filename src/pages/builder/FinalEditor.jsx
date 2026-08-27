@@ -1,14 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
-import { COLOR_SCHEMES, FONT_FAMILIES, TEMPLATES } from '../../data/templates';
+import {
+  COLOR_SCHEMES,
+  filterTemplates,
+  FONT_FAMILIES,
+  getTemplateById,
+  getTemplateTheme,
+  TEMPLATE_CATEGORIES,
+} from '../../data/templates';
 import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
 import ResumePreviewViewer from '../../components/ResumePreviewViewer';
 import PrintableResume from '../../components/PrintableResume';
 import EmailResumeDialog from '../../components/EmailResumeDialog';
-import { getOrderedSectionIds, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
-import { getResumeQualityReview } from '../../utils/resumeQuality';
+import { getOrderedSectionIds, getResumeLayout, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
+import {
+  addToPersonalDictionary,
+  buildIssueAction,
+  getResumeQualityReport,
+  loadQualityIgnores,
+  saveQualityIgnore,
+} from '../../utils/resumeQuality';
 import { generateDOCX, generatePDF, printResume } from '../../utils/pdfGenerator';
 import {
   dismissFinalizeWelcome,
@@ -30,6 +43,45 @@ const PAGE_BORDER_OPTIONS = [
   { id: 'thick', label: 'Thick', description: '3pt accent border' },
 ];
 
+const PANEL_SCROLL_SELECTOR = '.fe-tool-content, .fe-workspace, .fe-reorder-list';
+
+function isScrollablePanel(element) {
+  if (!element) return false;
+  const overflowY = window.getComputedStyle(element).overflowY;
+  return /(auto|scroll|overlay)/.test(overflowY) && element.scrollHeight > element.clientHeight;
+}
+
+function restrictDragToPanel({
+  transform,
+  draggingNodeRect,
+  overlayNodeRect,
+  scrollableAncestors,
+}) {
+  const draggedRect = overlayNodeRect || draggingNodeRect;
+  const scrollPanel = scrollableAncestors.find(element => element.matches?.(PANEL_SCROLL_SELECTOR));
+  if (!draggedRect || !scrollPanel) return transform;
+
+  const panelRect = scrollPanel.getBoundingClientRect();
+  const tabsRect = scrollPanel.classList.contains('fe-workspace')
+    ? scrollPanel.querySelector('.fe-tool-tabs')?.getBoundingClientRect()
+    : null;
+  const inset = 8;
+  const leftBoundary = panelRect.left + inset;
+  const rightBoundary = panelRect.right - inset;
+  const topBoundary = Math.max(panelRect.top + inset, (tabsRect?.bottom || panelRect.top) + inset);
+  const bottomBoundary = panelRect.bottom - inset;
+  const minX = leftBoundary - draggedRect.left;
+  const maxX = rightBoundary - draggedRect.right;
+  const minY = topBoundary - draggedRect.top;
+  const maxY = bottomBoundary - draggedRect.bottom;
+
+  return {
+    ...transform,
+    x: minX <= maxX ? Math.min(maxX, Math.max(minX, transform.x)) : transform.x,
+    y: minY <= maxY ? Math.min(maxY, Math.max(minY, transform.y)) : transform.y,
+  };
+}
+
 export default function FinalEditor() {
   // Finalize can be opened directly, outside a page that exposes the theme
   // switcher. Initializing the hook here keeps the panel and live thumbnails
@@ -40,6 +92,12 @@ export default function FinalEditor() {
   const navigate = useNavigate();
   const design = state.design;
   const [activeTab, setActiveTab] = useState('templates');
+  const [templateCategory, setTemplateCategory] = useState('all');
+  const [qualityCategory, setQualityCategory] = useState('all');
+  const [qualityIssueIndex, setQualityIssueIndex] = useState(0);
+  const [ignoredQualityIssues, setIgnoredQualityIssues] = useState(() => loadQualityIgnores());
+  const [dictionaryRevision, setDictionaryRevision] = useState(0);
+  const [pendingDownload, setPendingDownload] = useState('');
   const [zoom, setZoom] = useState(100);
   const [resumeName, setResumeName] = useState(state.meta.name ?? 'My Resume');
   const [showMenu, setShowMenu] = useState(false);
@@ -62,8 +120,23 @@ export default function FinalEditor() {
   const [showSectionReorder, setShowSectionReorder] = useState(false);
   const [pageCount, setPageCount] = useState(1);
   const previewRef = useRef(null);
-  const sectionsPanelRef = useRef(null);
+  const workspaceRef = useRef(null);
+  const toolContentRef = useRef(null);
   const exportJobRef = useRef('');
+  const selectedTemplate = getTemplateById(state.meta?.templateId);
+  const visibleTemplates = filterTemplates(templateCategory);
+  const qualityReport = useMemo(
+    () => {
+      void dictionaryRevision;
+      return getResumeQualityReport(state, { ignoredFingerprints: ignoredQualityIssues });
+    },
+    [dictionaryRevision, ignoredQualityIssues, state],
+  );
+  const writingIssueCount = qualityReport.findings.filter(finding => finding.category !== 'completeness').length;
+  const filteredQualityFindings = qualityCategory === 'all'
+    ? qualityReport.findings
+    : qualityReport.findings.filter(finding => finding.category === qualityCategory);
+  const activeQualityIssue = filteredQualityFindings[Math.min(qualityIssueIndex, Math.max(0, filteredQualityFindings.length - 1))];
 
   const showNotification = useCallback(({ type = 'error', title, message }) => {
     setNotification({ id: Date.now(), type, title, message });
@@ -122,7 +195,7 @@ export default function FinalEditor() {
     return () => window.clearTimeout(timeout);
   }, [notification]);
 
-  const handleDownload = async (format = 'pdf') => {
+  const performDownload = async (format = 'pdf') => {
     const exportFormat = typeof format === 'string' ? format : 'pdf';
     if (!['pdf', 'docx'].includes(exportFormat) || exportJobRef.current) return;
 
@@ -151,6 +224,16 @@ export default function FinalEditor() {
       exportJobRef.current = '';
       setGenerating('');
     }
+  };
+
+  const handleDownload = (format = 'pdf') => {
+    const exportFormat = typeof format === 'string' ? format : 'pdf';
+    if (!['pdf', 'docx'].includes(exportFormat) || exportJobRef.current) return;
+    if (writingIssueCount > 0) {
+      setPendingDownload(exportFormat);
+      return;
+    }
+    performDownload(exportFormat);
   };
 
   const handlePrint = async () => {
@@ -185,8 +268,18 @@ export default function FinalEditor() {
   };
 
   const selectTemplate = (template) => {
+    const selectedTheme = getTemplateTheme(template);
     dispatch({ type: 'SET_META', payload: { templateId: template.id } });
-    dispatch({ type: 'SET_DESIGN', payload: { colorScheme: template.defaultColor } });
+    dispatch({
+      type: 'SET_DESIGN',
+      payload: {
+        themePreset: selectedTheme.id,
+        colorScheme: selectedTheme.colors.accent,
+        headingColor: selectedTheme.colors.heading,
+        sidebarColor: selectedTheme.colors.sidebar,
+        dividerColor: selectedTheme.colors.divider,
+      },
+    });
   };
 
   const handleNameChange = (event) => {
@@ -196,7 +289,52 @@ export default function FinalEditor() {
   };
 
   const selectedSectionName = selectedSection ? getSectionDisplayName(state, selectedSection) : '';
-  const reviewFindings = getResumeQualityReview(state);
+  const reviewFindings = qualityReport.findings;
+
+  const navigateToQualityIssue = (finding) => {
+    if (!finding) return;
+    if (finding.sectionId) focusPreviewSection(finding.sectionId);
+    if (!finding.route) return;
+    if (finding.fieldId) window.sessionStorage.setItem('resumeBuilder_focusQualityField', finding.fieldId);
+    navigate(`/builder/${finding.route}`, {
+      state: {
+        returnTo: '/finalize',
+        focusSection: finding.sectionId,
+        focusField: finding.fieldId,
+        ...(finding.routeState || {}),
+      },
+    });
+  };
+
+  const ignoreQualityIssue = (finding) => {
+    const next = saveQualityIgnore(finding);
+    setIgnoredQualityIssues(next);
+    setQualityIssueIndex(index => Math.max(0, index - 1));
+  };
+
+  const ignoreAllMatchingQualityIssues = (finding) => {
+    const matches = qualityReport.findings.filter(item => (
+      item.category === finding?.category
+      && item.original
+      && item.original.toLocaleLowerCase() === finding.original.toLocaleLowerCase()
+    ));
+    let next = ignoredQualityIssues;
+    matches.forEach((item) => { next = saveQualityIgnore(item); });
+    setIgnoredQualityIssues(next);
+    setQualityIssueIndex(0);
+  };
+
+  const addQualityWordToDictionary = (finding) => {
+    if (!finding?.original) return;
+    addToPersonalDictionary(finding.original);
+    setDictionaryRevision(revision => revision + 1);
+    setQualityIssueIndex(index => Math.max(0, index - 1));
+  };
+
+  const applyQualityFix = (finding, replacement) => {
+    dispatch(buildIssueAction(finding, replacement));
+    setQualityIssueIndex(index => Math.max(0, index - 1));
+  };
 
   const editSelectedSection = () => {
     const route = getSectionEditRoute(state, selectedSection);
@@ -238,10 +376,16 @@ export default function FinalEditor() {
     setSectionPendingDelete('');
   };
 
+  const scrollToolsToTop = useCallback(() => {
+    const scrollPanel = [toolContentRef.current, workspaceRef.current].find(isScrollablePanel);
+    scrollPanel?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const tabs = [
     { id: 'templates', label: 'Templates', icon: 'template' },
     { id: 'design', label: 'Design', icon: 'design' },
     { id: 'sections', label: 'Sections', icon: 'sections' },
+    { id: 'check', label: 'Resume Check', icon: 'shield' },
   ];
   const scoreColor = completeness >= 80 ? 'var(--color-success)' : completeness >= 50 ? 'var(--color-warning)' : 'var(--color-error)';
 
@@ -273,8 +417,9 @@ export default function FinalEditor() {
         <div className="fe-topbar-right"><span className="fe-saved"><ResumeIcon name="finish" size={15} />Saved</span></div>
       </header>
 
-      <div className="fe-body">
-        <aside className="fe-tools" ref={sectionsPanelRef}>
+      <div className="fe-workspace" ref={workspaceRef}>
+        <div className="fe-body">
+        <aside className="fe-tools">
           <div className="fe-tool-tabs">
             {tabs.map(tab => (
               <button key={tab.id} className={`fe-tool-tab ${activeTab === tab.id ? 'active' : ''}`}
@@ -282,10 +427,10 @@ export default function FinalEditor() {
             ))}
           </div>
 
-          <div className="fe-tool-content">
+          <div className="fe-tool-content" ref={toolContentRef}>
             {activeTab === 'templates' && (
               <div className="fe-templates-panel">
-                <h3>Colors</h3>
+                <h3>Quick accent</h3>
                 <div className="fe-color-swatches">
                   {COLOR_SCHEMES.map(color => (
                     <button key={color.id}
@@ -296,9 +441,24 @@ export default function FinalEditor() {
                   ))}
                 </div>
 
-                <h3 style={{ marginTop: 'var(--space-6)' }}>All templates</h3>
+                <h3 style={{ marginTop: 'var(--space-6)' }}>Template category</h3>
+                <div className="fe-template-filters" role="group" aria-label="Filter templates">
+                  {TEMPLATE_CATEGORIES.map(category => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={`fe-template-filter ${templateCategory === category.id ? 'active' : ''}`}
+                      onClick={() => setTemplateCategory(category.id)}
+                      aria-pressed={templateCategory === category.id}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+
+                <h3 style={{ marginTop: 'var(--space-5)' }}>{visibleTemplates.length} distinct designs</h3>
                 <div className="fe-template-grid">
-                  {TEMPLATES.map(template => (
+                  {visibleTemplates.map(template => (
                     <div key={template.id} className={`fe-template-thumb ${state.meta.templateId === template.id ? 'active' : ''}`}
                       onClick={() => selectTemplate(template)} role="button" tabIndex={0}
                       onKeyDown={event => {
@@ -316,6 +476,7 @@ export default function FinalEditor() {
                         />
                       </div>
                       <span className="fe-thumb-name">{template.name}</span>
+                      <span className="fe-thumb-meta">{template.layout === '2-column' ? 'Two column' : 'Single column'}{template.atsFriendly ? ' · ATS' : ''}</span>
                     </div>
                   ))}
                 </div>
@@ -324,13 +485,48 @@ export default function FinalEditor() {
 
             {activeTab === 'design' && (
               <div className="fe-design-panel">
-                <h3>Accent Color</h3>
-                <label className="fe-color-control">
-                  <input type="color" value={design.colorScheme || '#6B21A8'}
-                    onChange={event => dispatch({ type: 'SET_DESIGN', payload: { colorScheme: event.target.value } })}
-                    aria-label="Custom accent color" />
-                  <span>Choose a custom color</span>
-                </label>
+                <h3>Theme presets</h3>
+                <div className="fe-theme-presets">
+                  {selectedTemplate.theme.presets.map(themePreset => (
+                    <button
+                      key={themePreset.id}
+                      type="button"
+                      className={`fe-theme-preset ${design.themePreset === themePreset.id ? 'active' : ''}`}
+                      onClick={() => {
+                        const theme = getTemplateTheme(selectedTemplate, themePreset.id);
+                        dispatch({ type: 'SET_DESIGN', payload: {
+                          themePreset: theme.id,
+                          colorScheme: theme.colors.accent,
+                          headingColor: theme.colors.heading,
+                          sidebarColor: theme.colors.sidebar,
+                          dividerColor: theme.colors.divider,
+                        } });
+                      }}
+                    >
+                      <span className="fe-theme-dots" aria-hidden="true">
+                        {Object.values(themePreset.colors).map((color, index) => <i key={`${color}-${index}`} style={{ background: color }} />)}
+                      </span>
+                      {themePreset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <h3 style={{ marginTop: 'var(--space-6)' }}>Custom colors</h3>
+                <div className="fe-custom-color-list">
+                  {[
+                    ['colorScheme', 'Accent', design.colorScheme || selectedTemplate.defaultColor],
+                    ['headingColor', 'Headings', design.headingColor || selectedTemplate.defaultColor],
+                    ['sidebarColor', 'Sidebar', design.sidebarColor || selectedTemplate.defaultColor],
+                    ['dividerColor', 'Dividers', design.dividerColor || selectedTemplate.defaultColor],
+                  ].map(([field, label, value]) => (
+                    <label className="fe-color-control" key={field}>
+                      <input type="color" value={value}
+                        onChange={event => dispatch({ type: 'SET_DESIGN', payload: { themePreset: 'custom', [field]: event.target.value } })}
+                        aria-label={`${label} color`} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
 
                 <h3 style={{ marginTop: 'var(--space-6)' }}>Font Family</h3>
                 <select className="form-input form-select" value={design.fontFamily}
@@ -373,10 +569,18 @@ export default function FinalEditor() {
                 <DesignRange label="Heading Spacing" value={design.headingLetterSpacing ?? 0.5} min="-1" max="3" step="0.25" unit="px"
                   onChange={value => dispatch({ type: 'SET_DESIGN', payload: { headingLetterSpacing: value } })} />
 
-                <button className="btn btn-ghost btn-sm fe-reset-design" onClick={() => dispatch({ type: 'SET_DESIGN', payload: {
-                  colorScheme: '#6B21A8', fontFamily: 'Inter', fontStyle: 'normal', pageMargin: 32,
-                  sectionSpacing: 50, paragraphSpacing: 50, lineSpacing: 50, headingLetterSpacing: 0.5, pageBorder: 'none',
-                } })}><ResumeIcon name="undo" size={16} />Reset to Default</button>
+                <button className="btn btn-ghost btn-sm fe-reset-design" onClick={() => {
+                  const theme = getTemplateTheme(selectedTemplate);
+                  dispatch({ type: 'SET_DESIGN', payload: {
+                    themePreset: theme.id,
+                    colorScheme: theme.colors.accent,
+                    headingColor: theme.colors.heading,
+                    sidebarColor: theme.colors.sidebar,
+                    dividerColor: theme.colors.divider,
+                    fontFamily: 'Inter', fontStyle: 'normal', pageMargin: 32,
+                    sectionSpacing: 50, paragraphSpacing: 50, lineSpacing: 50, headingLetterSpacing: 0.5, pageBorder: 'none',
+                  } });
+                }}><ResumeIcon name="undo" size={16} />Reset template design</button>
               </div>
             )}
 
@@ -388,7 +592,24 @@ export default function FinalEditor() {
                 hoveredSection={hoveredSection}
                 onSectionSelect={focusPreviewSection}
                 onSectionHover={setHoveredSection}
-                scrollContainerRef={sectionsPanelRef}
+                scrollContainerRef={toolContentRef}
+              />
+            )}
+
+            {activeTab === 'check' && (
+              <ResumeCheckPanel
+                report={qualityReport}
+                category={qualityCategory}
+                onCategoryChange={(category) => { setQualityCategory(category); setQualityIssueIndex(0); }}
+                findings={filteredQualityFindings}
+                issue={activeQualityIssue}
+                issueIndex={qualityIssueIndex}
+                onIssueIndexChange={setQualityIssueIndex}
+                onNavigate={navigateToQualityIssue}
+                onFix={applyQualityFix}
+                onIgnore={ignoreQualityIssue}
+                onIgnoreAll={ignoreAllMatchingQualityIssues}
+                onAddToDictionary={addQualityWordToDictionary}
               />
             )}
           </div>
@@ -451,7 +672,7 @@ export default function FinalEditor() {
             <ResumeIcon name="document" size={16} />
             <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'} in preview</span>
           </div>
-          <ResumeReview findings={reviewFindings} id="resume-review-title" />
+          <ResumeReview findings={reviewFindings} id="resume-review-title" score={qualityReport.score} onOpen={() => setActiveTab('check')} />
           <FinalizeActionButtons
             generating={generating}
             onDownload={handleDownload}
@@ -460,7 +681,7 @@ export default function FinalEditor() {
             onFinish={() => setShowAuthModal(true)}
           />
         </aside>
-      </div>
+        </div>
 
       <section className="fe-mobile-summary" aria-labelledby="mobile-finalize-title">
         <div className="fe-mobile-completion">
@@ -473,7 +694,7 @@ export default function FinalEditor() {
             <span style={{ width: `${completeness}%`, background: scoreColor }} />
           </div>
         </div>
-        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" />
+        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" score={qualityReport.score} onOpen={() => setActiveTab('check')} />
         <FinalizeActionButtons
           generating={generating}
           onDownload={handleDownload}
@@ -483,6 +704,7 @@ export default function FinalEditor() {
           onPreview={() => setShowPreviewViewer(true)}
         />
       </section>
+      </div>
 
       <nav className="fe-mobile-primary-bar" aria-label="Finalize resume actions">
         <button className="btn btn-outline-dark" onClick={() => setShowPreviewViewer(true)}>
@@ -524,6 +746,31 @@ export default function FinalEditor() {
               <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); setShowEmailDialog(true); }} disabled={Boolean(generating)}>
                 <ResumeIcon name="email" size={19} />Email
               </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {pendingDownload && (
+        <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={() => setPendingDownload('')}>
+          <section className="fe-section-dialog fe-download-warning" role="dialog" aria-modal="true" aria-labelledby="download-warning-title" onMouseDown={event => event.stopPropagation()}>
+            <div className="fe-download-warning-icon"><ResumeIcon name="shield" size={22} /></div>
+            <h2 id="download-warning-title">We found {writingIssueCount} possible writing {writingIssueCount === 1 ? 'issue' : 'issues'}.</h2>
+            <p>Your resume can still be downloaded. Review the suggestions first, or continue with the content exactly as written.</p>
+            <div className="fe-section-dialog-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setPendingDownload('')}>Cancel</button>
+              <button type="button" className="btn btn-outline-dark" onClick={() => {
+                setPendingDownload('');
+                setActiveTab('check');
+                setQualityCategory('all');
+                setQualityIssueIndex(0);
+                scrollToolsToTop();
+              }}>Review issues</button>
+              <button type="button" className="btn btn-primary" onClick={() => {
+                const format = pendingDownload;
+                setPendingDownload('');
+                performDownload(format);
+              }}>Download anyway</button>
             </div>
           </section>
         </div>
@@ -608,13 +855,117 @@ export default function FinalEditor() {
   );
 }
 
-function ResumeReview({ findings, id }) {
+const QUALITY_CATEGORIES = [
+  ['spelling', 'Spelling'],
+  ['grammar', 'Grammar'],
+  ['style', 'Writing'],
+  ['repetition', 'Repetition'],
+  ['consistency', 'Consistency'],
+  ['completeness', 'Completeness'],
+];
+
+function ResumeCheckPanel({
+  report,
+  category,
+  onCategoryChange,
+  findings,
+  issue,
+  issueIndex,
+  onIssueIndexChange,
+  onNavigate,
+  onFix,
+  onIgnore,
+  onIgnoreAll,
+  onAddToDictionary,
+}) {
+  const move = direction => onIssueIndexChange(current => {
+    if (!findings.length) return 0;
+    return (current + direction + findings.length) % findings.length;
+  });
+  return (
+    <section className="fe-resume-check" aria-labelledby="resume-check-panel-title">
+      <div className="fe-check-score">
+        <div>
+          <span>Resume quality</span>
+          <strong id="resume-check-panel-title">{report.score}<small>/100</small></strong>
+        </div>
+        <div className="fe-check-score-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={report.score}>
+          <span style={{ width: `${report.score}%` }} />
+        </div>
+        <p>{report.disclaimer}</p>
+      </div>
+
+      <div className="fe-check-categories" role="group" aria-label="Writing issue categories">
+        <button type="button" className={category === 'all' ? 'active' : ''} onClick={() => onCategoryChange('all')}>
+          <span>All issues</span><strong>{report.total}</strong>
+        </button>
+        {QUALITY_CATEGORIES.map(([id, label]) => (
+          <button type="button" key={id} className={category === id ? 'active' : ''} onClick={() => onCategoryChange(id)}>
+            <span>{label}</span><strong>{report.counts[id] || 0}</strong>
+          </button>
+        ))}
+      </div>
+
+      {!issue ? (
+        <div className="fe-check-empty">
+          <ResumeIcon name="finish" size={26} />
+          <strong>No issues in this category</strong>
+          <span>Your content remains unchanged unless you approve a suggestion.</span>
+        </div>
+      ) : (
+        <>
+          <div className="fe-check-navigation">
+            <button type="button" onClick={() => move(-1)} disabled={findings.length < 2} aria-label="Previous issue"><ResumeIcon name="arrowLeft" size={15} />Previous</button>
+            <span>{Math.min(issueIndex + 1, findings.length)} of {findings.length}</span>
+            <button type="button" onClick={() => move(1)} disabled={findings.length < 2} aria-label="Next issue">Next<ResumeIcon name="arrowRight" size={15} /></button>
+          </div>
+          <article className={`fe-check-issue is-${issue.category}`}>
+            <span className="fe-check-issue-category">{issue.categoryLabel}</span>
+            <h4>{issue.title}</h4>
+            <p>{issue.message}</p>
+            {issue.original && <blockquote>{issue.original}</blockquote>}
+            {issue.suggestions?.length > 0 && (
+              <div className="fe-check-suggestions">
+                <span>Suggested fix</span>
+                {issue.suggestions.map(suggestion => (
+                  <button type="button" key={suggestion} onClick={() => onFix(issue, suggestion)}>{suggestion}</button>
+                ))}
+              </div>
+            )}
+            <div className="fe-check-issue-actions">
+              {issue.route && <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => onNavigate(issue)}><ResumeIcon name="edit" size={15} />Show in editor</button>}
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => onIgnore(issue)}>Ignore once</button>
+              {issue.original && <button type="button" className="btn btn-sm btn-ghost" onClick={() => onIgnoreAll(issue)}>Ignore all</button>}
+              {issue.category === 'spelling' && issue.original && <button type="button" className="btn btn-sm btn-ghost" onClick={() => onAddToDictionary(issue)}>Add to dictionary</button>}
+            </div>
+          </article>
+          <ul className="fe-check-issue-list" aria-label="Issues in selected category">
+            {findings.map((finding, index) => (
+              <li key={finding.fingerprint}>
+                <button type="button" className={finding.fingerprint === issue.fingerprint ? 'active' : ''} onClick={() => onIssueIndexChange(index)}>
+                  <span>{finding.title}</span><small>{finding.sectionId ? getSectionDisplayNameForIssue(finding.sectionId) : finding.categoryLabel}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+function getSectionDisplayNameForIssue(sectionId) {
+  const labels = { summary: 'Summary', workHistory: 'Experience', education: 'Education', skills: 'Skills', certifications: 'Certifications' };
+  return labels[sectionId] || (String(sectionId).startsWith('custom-') ? 'Custom section' : sectionId);
+}
+
+function ResumeReview({ findings, id, score, onOpen }) {
   const visibleFindings = findings.slice(0, 3);
   return (
     <section className="fe-resume-review" aria-labelledby={id}>
       <div className="fe-resume-review-heading">
-        <h2 id={id}>Resume review</h2>
-        <span>{findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
+        <h2 id={id}>Resume Check</h2>
+        <span>{score}/100 · {findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
       </div>
       {visibleFindings.length ? (
         <ul>
@@ -629,6 +980,7 @@ function ResumeReview({ findings, id }) {
         <p>Core resume details are present. Review each section for relevance before exporting.</p>
       )}
       {findings.length > visibleFindings.length && <p className="fe-resume-review-more">+{findings.length - visibleFindings.length} more helpful checks</p>}
+      <button type="button" className="btn btn-sm btn-outline-dark fe-open-check" onClick={onOpen}>Open Resume Check</button>
     </section>
   );
 }
@@ -724,11 +1076,6 @@ function AddSectionButton({ option, added, onAdd }) {
   );
 }
 
-const SECTION_LAYOUT_COLUMNS = [
-  { id: 'sidebar', label: 'Left column', description: 'Sidebar' },
-  { id: 'main', label: 'Right column', description: 'Main content' },
-];
-
 const sectionColumnDropId = column => `section-column-${column}`;
 
 function SortableItem({
@@ -741,13 +1088,15 @@ function SortableItem({
   hovered,
   onMove,
   onMoveToColumn,
+  moveTargetLabel,
+  moveTargetIcon,
   onSelect,
   onHover,
   registerItem,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id });
   const moveTarget = column === 'sidebar' ? 'main' : 'sidebar';
-  const moveTargetLabel = column === 'sidebar' ? 'right column' : 'left column';
+  const targetLabel = moveTargetLabel || (column === 'sidebar' ? 'main column' : 'sidebar');
   const setRefs = (node) => {
     setNodeRef(node);
     registerItem?.(node);
@@ -755,7 +1104,7 @@ function SortableItem({
   return (
     <div
       ref={setRefs}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1, zIndex: isDragging ? 10 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }}
       className={`fe-sortable-item ${selected ? 'is-selected' : ''} ${hovered ? 'is-hovered' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver && !isDragging ? 'is-drop-target' : ''}`}
       data-section-id={id}
       onClick={() => onSelect?.(id)}
@@ -770,8 +1119,8 @@ function SortableItem({
         <button type="button" className="btn btn-icon btn-ghost fe-section-move-btn fe-section-move-down" onClick={() => onMove(id, 1)} disabled={index === count - 1} aria-label={`Move ${label} down`} title={`Move ${label} down`}><ResumeIcon name="arrowUp" size={15} /></button>
       </span>
       {onMoveToColumn && (
-        <button type="button" className="btn btn-icon btn-ghost fe-section-column-btn" onClick={() => onMoveToColumn(id, moveTarget)} aria-label={`Move ${label} to the ${moveTargetLabel}`} title={`Move to ${moveTargetLabel}`}>
-          <ResumeIcon name={column === 'sidebar' ? 'arrowRight' : 'arrowLeft'} size={15} />
+        <button type="button" className="btn btn-icon btn-ghost fe-section-column-btn" onClick={() => onMoveToColumn(id, moveTarget)} aria-label={`Move ${label} to ${targetLabel}`} title={`Move to ${targetLabel}`}>
+          <ResumeIcon name={moveTargetIcon || (column === 'sidebar' ? 'arrowRight' : 'arrowLeft')} size={15} />
         </button>
       )}
     </div>
@@ -789,6 +1138,8 @@ function SectionColumn({
   onSectionSelect,
   onSectionHover,
   registerItem,
+  moveTargetLabel,
+  moveTargetIcon,
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: sectionColumnDropId(column.id) });
   return (
@@ -811,6 +1162,8 @@ function SectionColumn({
               hovered={id === hoveredSection}
               onMove={(sectionId, direction) => onMove(column.id, sectionId, direction)}
               onMoveToColumn={onMoveToColumn}
+              moveTargetLabel={moveTargetLabel}
+              moveTargetIcon={moveTargetIcon}
               onSelect={onSectionSelect}
               onHover={onSectionHover}
               registerItem={node => registerItem(id, node)}
@@ -833,15 +1186,31 @@ function SectionOrderList({
   scrollContainerRef,
 }) {
   const sectionOrder = getOrderedSectionIds(state);
-  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
-  const supportsColumns = selectedTemplate?.layout === '2-column';
+  const selectedTemplate = getTemplateById(state.meta?.templateId);
+  const resumeLayout = getResumeLayout(state);
+  const supportsColumns = resumeLayout.isTwoColumn;
   const sectionColumns = getSectionColumns(state);
+  const physicalColumnOrder = resumeLayout.sidebarPosition === 'right' ? ['main', 'sidebar'] : ['sidebar', 'main'];
+  const sectionLayoutColumns = physicalColumnOrder.map((id, position) => {
+    const targetId = id === 'sidebar' ? 'main' : 'sidebar';
+    const targetPosition = physicalColumnOrder.indexOf(targetId);
+    return {
+      id,
+      label: selectedTemplate.columnLabels?.[id] || (id === 'sidebar' ? 'Sidebar' : 'Main content'),
+      description: position === 0 ? 'Left side' : 'Right side',
+      moveTargetLabel: selectedTemplate.columnLabels?.[targetId] || (targetId === 'sidebar' ? 'sidebar' : 'main content'),
+      moveTargetIcon: targetPosition > position ? 'arrowRight' : 'arrowLeft',
+    };
+  });
   const [activeId, setActiveId] = useState(null);
   const itemRefs = useRef(new Map());
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  const canAutoScroll = useCallback(element => (
+    element === scrollContainerRef?.current || element.classList?.contains('fe-workspace')
+  ), [scrollContainerRef]);
 
   const registerItem = (sectionId, node) => {
     if (node) itemRefs.current.set(sectionId, node);
@@ -850,24 +1219,27 @@ function SectionOrderList({
 
   const scrollSectionItemIntoView = useCallback((sectionId) => {
     const item = itemRefs.current.get(sectionId);
-    const container = scrollContainerRef?.current;
     if (!item) return;
 
-    if (!container) {
-      item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      return;
-    }
+    const preferredContainer = scrollContainerRef?.current;
+    const workspaceContainer = item.closest('.fe-workspace');
+    const container = [preferredContainer, workspaceContainer].find(isScrollablePanel);
+    if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
     const itemRect = item.getBoundingClientRect();
     const padding = 12;
-    const isOutsideView = itemRect.top < containerRect.top + padding
-      || itemRect.bottom > containerRect.bottom - padding;
+    const tabsRect = container.classList.contains('fe-workspace')
+      ? container.querySelector('.fe-tool-tabs')?.getBoundingClientRect()
+      : null;
+    const visibleTop = Math.max(containerRect.top + padding, (tabsRect?.bottom || containerRect.top) + padding);
+    const visibleBottom = containerRect.bottom - padding;
+    const isOutsideView = itemRect.top < visibleTop || itemRect.bottom > visibleBottom;
     if (!isOutsideView) return;
 
     const targetTop = container.scrollTop
-      + (itemRect.top - containerRect.top)
-      - ((container.clientHeight - item.offsetHeight) / 2);
+      + (itemRect.top - visibleTop)
+      - ((Math.max(item.offsetHeight, visibleBottom - visibleTop) - item.offsetHeight) / 2);
     container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
   }, [scrollContainerRef]);
 
@@ -970,6 +1342,8 @@ function SectionOrderList({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      modifiers={[restrictDragToPanel]}
+      autoScroll={{ canScroll: canAutoScroll }}
       onDragStart={({ active }) => {
         setActiveId(active.id);
         onSectionSelect?.(active.id);
@@ -982,7 +1356,7 @@ function SectionOrderList({
     >
       {supportsColumns ? (
         <div className="fe-section-layout-manager">
-          {SECTION_LAYOUT_COLUMNS.map(column => (
+          {sectionLayoutColumns.map(column => (
             <SectionColumn
               key={column.id}
               column={column}
@@ -995,6 +1369,8 @@ function SectionOrderList({
               onSectionSelect={onSectionSelect}
               onSectionHover={onSectionHover}
               registerItem={registerItem}
+              moveTargetLabel={column.moveTargetLabel}
+              moveTargetIcon={column.moveTargetIcon}
             />
           ))}
         </div>
@@ -1017,7 +1393,7 @@ function SectionOrderList({
           ))}
         </SortableContext>
       )}
-      <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
+      <DragOverlay zIndex={10} dropAnimation={{ duration: 180, easing: 'ease-out' }}>
         {activeId ? <div className="fe-sortable-item fe-drag-overlay"><span className="fe-drag-handle"><ResumeIcon name="drag" size={18} /></span><span className="fe-sortable-label">{getSectionDisplayName(state, activeId)}</span></div> : null}
       </DragOverlay>
     </DndContext>
@@ -1033,7 +1409,7 @@ function SectionReorderDialog({
   onSectionHover,
   onClose,
 }) {
-  const selectedTemplate = TEMPLATES.find(template => template.id === state.meta?.templateId);
+  const selectedTemplate = getTemplateById(state.meta?.templateId);
   const supportsColumns = selectedTemplate?.layout === '2-column';
   const reorderListRef = useRef(null);
   return (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
-import { TEMPLATES } from '../../data/templates';
+import { filterTemplates, getTemplateTheme, TEMPLATE_CATEGORIES, TEMPLATES } from '../../data/templates';
 import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
 import ResumePreviewViewer from '../../components/ResumePreviewViewer';
@@ -14,12 +14,26 @@ export default function TemplateGallery() {
   const { state, dispatch } = useResume();
   const [selected, setSelected] = useState(state.meta.templateId || '');
   const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [category, setCategory] = useState('all');
+  const visibleTemplates = filterTemplates(category);
 
   const handleSelect = (templateId) => {
     const template = TEMPLATES.find(item => item.id === templateId);
     setSelected(templateId);
     dispatch({ type: 'SET_META', payload: { templateId } });
-    if (template) dispatch({ type: 'SET_DESIGN', payload: { colorScheme: template.defaultColor } });
+    if (template) {
+      const selectedTheme = getTemplateTheme(template);
+      dispatch({
+        type: 'SET_DESIGN',
+        payload: {
+          themePreset: selectedTheme.id,
+          colorScheme: selectedTheme.colors.accent,
+          headingColor: selectedTheme.colors.heading,
+          sidebarColor: selectedTheme.colors.sidebar,
+          dividerColor: selectedTheme.colors.divider,
+        },
+      });
+    }
   };
 
   const handleContinue = () => {
@@ -39,15 +53,34 @@ export default function TemplateGallery() {
           <h1>Choose your resume template</h1>
           <p className="onboarding-subtitle">Every thumbnail is a miniature of the actual layout. Open Preview for a larger view before choosing.</p>
 
+          <div className="template-category-filters" role="group" aria-label="Filter resume templates">
+            {TEMPLATE_CATEGORIES.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={`template-category-filter ${category === item.id ? 'active' : ''}`}
+                onClick={() => setCategory(item.id)}
+                aria-pressed={category === item.id}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="template-results-count" aria-live="polite">{visibleTemplates.length} distinct designs</p>
+
           <div className="template-grid">
-            {TEMPLATES.map(template => {
+            {visibleTemplates.map(template => {
               const isRecommended = template.recommendedFor.includes(state.meta.experienceLevel);
               return (
                 <div key={template.id} className={`template-card ${selected === template.id ? 'selected' : ''}`}
                   onClick={() => handleSelect(template.id)} role="button" tabIndex={0}
                   onKeyDown={event => event.key === 'Enter' && handleSelect(template.id)}
                   aria-label={`${template.name} template${isRecommended ? ' - Recommended' : ''}`}>
-                  {isRecommended && <div className="badge badge-recommended template-badge">Recommended</div>}
+                  <div className="template-card-badges">
+                    {isRecommended && <span className="badge badge-recommended">Recommended</span>}
+                    {template.atsFriendly && <span className="template-ats-badge"><ResumeIcon name="shield" size={12} />ATS Friendly</span>}
+                  </div>
                   <div className="template-preview" aria-hidden="true">
                     <ResumePreview data={TEMPLATE_PREVIEW_DATA} templateId={template.id} accentColor={template.defaultColor} scale={0.22} className="template-thumbnail-resume" />
                   </div>

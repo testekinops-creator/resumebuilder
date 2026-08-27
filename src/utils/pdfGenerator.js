@@ -133,7 +133,31 @@ export function downloadResumeExport(artifact) {
 }
 
 function richTextBlocks(html) {
-  if (!html || typeof DOMParser === 'undefined') return [];
+  if (!html) return [];
+  if (typeof DOMParser === 'undefined') {
+    const decode = value => String(value || '')
+      .replace(/<br\s*\/?\s*>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#(?:39|x27);/gi, "'")
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
+    const source = String(html);
+    const listBlocks = [...source.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)]
+      .map(match => ({ text: compactText(decode(match[1])), bullet: true }))
+      .filter(block => block.text);
+    const remainder = source.replace(/<(?:ul|ol)\b[^>]*>[\s\S]*?<\/(?:ul|ol)>/gi, ' ');
+    const ordinaryBlocks = [...remainder.matchAll(/<(?:p|div|h[1-6])\b[^>]*>([\s\S]*?)<\/(?:p|div|h[1-6])>/gi)]
+      .map(match => ({ text: compactText(decode(match[1])), bullet: false }))
+      .filter(block => block.text);
+    if (listBlocks.length || ordinaryBlocks.length) return [...ordinaryBlocks, ...listBlocks];
+    const plainText = compactText(decode(source));
+    return plainText ? [{ text: plainText, bullet: false }] : [];
+  }
   const root = new DOMParser().parseFromString(html, 'text/html').body;
   const blocks = [];
   const add = (node, bullet = false) => {
@@ -210,18 +234,48 @@ function fontForDesign(fontFamily) {
   return 'helvetica';
 }
 
+const DOCX_TEMPLATE_BASE_BY_ID = Object.freeze({
+  classic: 'classic',
+  harbor: 'professional',
+  sapphire: 'modern',
+  slate: 'accountant',
+  aspen: 'classic',
+  modern: 'modern',
+  orbit: 'developer',
+  nova: 'executive',
+  metro: 'accountant',
+  azure: 'modern',
+  professional: 'professional',
+  ledger: 'timeline',
+  ivory: 'ats-serif',
+  cobalt: 'accountant',
+  sterling: 'professional',
+  creative: 'creative',
+  canvas: 'creative',
+  coral: 'editorial',
+  prism: 'creative',
+  muse: 'creative',
+  minimal: 'minimal',
+  mono: 'minimal',
+  nordic: 'accountant',
+  pebble: 'editorial',
+  willow: 'creative',
+  executive: 'executive',
+  summit: 'executive',
+  regal: 'accountant',
+  onyx: 'classic',
+  bordeaux: 'timeline',
+  accountant: 'accountant',
+  developer: 'developer',
+  timeline: 'timeline',
+  editorial: 'editorial',
+  'ats-serif': 'ats-serif',
+});
+
+export const RESUME_DOCX_TEMPLATE_IDS = Object.freeze(Object.keys(DOCX_TEMPLATE_BASE_BY_ID));
+
 function templateBase(templateId) {
-  if (templateId === 'accountant') return 'accountant';
-  if (templateId === 'developer') return 'developer';
-  if (templateId === 'timeline') return 'timeline';
-  if (templateId === 'editorial') return 'editorial';
-  if (templateId === 'ats-serif') return 'ats-serif';
-  if (['modern', 'orbit', 'nova', 'metro', 'azure'].includes(templateId)) return 'modern';
-  if (['professional', 'ledger', 'ivory', 'cobalt', 'sterling'].includes(templateId)) return 'professional';
-  if (['creative', 'canvas', 'coral', 'prism', 'muse'].includes(templateId)) return 'creative';
-  if (['minimal', 'mono', 'nordic', 'pebble', 'willow'].includes(templateId)) return 'minimal';
-  if (['executive', 'summit', 'regal', 'onyx', 'bordeaux'].includes(templateId)) return 'executive';
-  return 'classic';
+  return DOCX_TEMPLATE_BASE_BY_ID[templateId] || 'classic';
 }
 
 function sectionLabel(section, base) {
@@ -560,6 +614,7 @@ export async function generatePDF(options) {
 const DOCX_CONTENT_WIDTH = PAGE_WIDTH_TWIPS - PAGE_MARGIN_TWIPS * 2;
 const DOCX_SIDEBAR_WIDTH = 3600;
 const DOCX_MAIN_WIDTH = DOCX_CONTENT_WIDTH - DOCX_SIDEBAR_WIDTH;
+const DOCX_ZERO_CELL_MARGINS = Object.freeze({ top: 0, bottom: 0, left: 0, right: 0 });
 const DOCX_NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 const DOCX_NO_BORDERS = {
   top: DOCX_NO_BORDER,
@@ -594,14 +649,45 @@ const DOCX_TEMPLATE_CONFIG = {
   'ats-serif': { header: 'underlined' },
 };
 
+function splitDocxWidth(totalWidth, leftShare) {
+  const leftWidth = Math.max(1, Math.round(totalWidth * leftShare));
+  return [leftWidth, totalWidth - leftWidth];
+}
+
+function docxInnerWidth(cellWidth, margins = DOCX_ZERO_CELL_MARGINS) {
+  return Math.max(1, cellWidth - (margins.left || 0) - (margins.right || 0));
+}
+
+function fixedDocxTableGeometry(width, columnWidths = [width]) {
+  const tableWidth = Math.round(width);
+  const exactColumnWidths = columnWidths.map(value => Math.round(value));
+  if (tableWidth <= 0 || exactColumnWidths.some(value => value <= 0)
+    || exactColumnWidths.reduce((sum, value) => sum + value, 0) !== tableWidth) {
+    throw exportError('The DOCX renderer produced invalid fixed-table geometry.', 'layout');
+  }
+  return {
+    width: { size: tableWidth, type: WidthType.DXA },
+    columnWidths: exactColumnWidths,
+    layout: TableLayoutType.FIXED,
+  };
+}
+
 function textRun(text, options = {}) {
   return new TextRun({ text: compactText(text), size: 20, font: 'Arial', ...options });
 }
 
 function docxFontFamily(state) {
   const requested = compactText(state.design?.fontFamily);
-  if (!requested || /^(inter|helvetica)$/i.test(requested)) return 'Arial';
-  return requested;
+  const mobileSafeFonts = {
+    arial: 'Arial',
+    calibri: 'Calibri',
+    georgia: 'Georgia',
+    'times new roman': 'Times New Roman',
+    'courier new': 'Courier New',
+  };
+  if (!requested) return 'Arial';
+  if (/^(garamond|palatino linotype|cambria)$/i.test(requested)) return 'Times New Roman';
+  return mobileSafeFonts[requested.toLowerCase()] || 'Arial';
 }
 
 function paragraphText(text, { font, color = '333333', size = 20, runOptions = {}, style = DOCX_STYLE.body, ...options } = {}) {
@@ -669,28 +755,31 @@ function itemParagraphs(items, { font, color = '333333', sidebar = false, bullet
   }));
 }
 
-function ratedSkillRows(skillEntries, { font, color = '333333', sidebar = false, spacing } = {}) {
+function ratedSkillRows(skillEntries, {
+  font,
+  color = '333333',
+  sidebar = false,
+  spacing,
+  availableWidth = DOCX_CONTENT_WIDTH,
+} = {}) {
   const textColor = sidebar ? 'FFFFFF' : color;
-  const cellMargins = { top: 0, bottom: 0, left: 0, right: 0 };
-  const nameWidth = sidebar ? 55 : 75;
-  const starsWidth = 100 - nameWidth;
-  const columnWidths = sidebar ? [5760, 4706] : [7800, 2666];
+  const columnWidths = splitDocxWidth(availableWidth, sidebar ? 0.55 : 0.75);
+  const [nameWidth, ratingWidth] = columnWidths;
 
-  // A compact table row lets Word align the stars to the available right edge
+  // A compact table row lets Word align the rating to the available right edge
   // in both full-width and two-column templates, without sacrificing a real
   // list bullet before the skill name.
   return skillEntries.map(({ name, rating }) => new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths,
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(availableWidth, columnWidths),
     borders: DOCX_NO_BORDERS,
     rows: [new TableRow({
+      cantSplit: true,
       children: [
         new TableCell({
-          width: { size: nameWidth, type: WidthType.PERCENTAGE },
+          width: { size: nameWidth, type: WidthType.DXA },
           borders: DOCX_NO_BORDERS,
           verticalAlign: VerticalAlignTable.TOP,
-          margins: cellMargins,
+          margins: DOCX_ZERO_CELL_MARGINS,
           children: [new Paragraph({
             ...docxBulletProperties(spacing),
             spacing: { before: 0, after: spacing.bulletAfter, line: spacing.line },
@@ -698,15 +787,15 @@ function ratedSkillRows(skillEntries, { font, color = '333333', sidebar = false,
           })],
         }),
         new TableCell({
-          width: { size: starsWidth, type: WidthType.PERCENTAGE },
+          width: { size: ratingWidth, type: WidthType.DXA },
           borders: DOCX_NO_BORDERS,
           verticalAlign: VerticalAlignTable.TOP,
-          margins: cellMargins,
+          margins: DOCX_ZERO_CELL_MARGINS,
           children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
             spacing: { before: 0, after: spacing.bulletAfter, line: spacing.line },
-            children: [textRun(`${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`, {
-              font: 'Segoe UI Symbol',
+            children: [textRun(`${rating}/5`, {
+              font,
               color: textColor,
               size: sidebar ? 16 : 20,
             })],
@@ -717,24 +806,33 @@ function ratedSkillRows(skillEntries, { font, color = '333333', sidebar = false,
   }));
 }
 
-function entryHeader(left, right, { font, color, rightColor = color, sidebar = false }) {
+function entryHeader(left, right, {
+  font,
+  color,
+  rightColor = color,
+  sidebar = false,
+  availableWidth = DOCX_CONTENT_WIDTH,
+}) {
+  const columnWidths = splitDocxWidth(availableWidth, availableWidth < 4800 ? 0.62 : (7600 / DOCX_CONTENT_WIDTH));
+  const [leftWidth, rightWidth] = columnWidths;
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [7600, 2866],
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(availableWidth, columnWidths),
     borders: DOCX_NO_BORDERS,
     rows: [new TableRow({
+      cantSplit: true,
       children: [
         new TableCell({
-          width: { size: 7600, type: WidthType.DXA },
+          width: { size: leftWidth, type: WidthType.DXA },
           borders: DOCX_NO_BORDERS,
           verticalAlign: VerticalAlignTable.TOP,
+          margins: DOCX_ZERO_CELL_MARGINS,
           children: [paragraphText(left, { font, color: sidebar ? 'FFFFFF' : '202020', size: sidebar ? 19 : 21, style: DOCX_STYLE.entryTitle, spacing: { after: 0 } })],
         }),
         new TableCell({
-          width: { size: 2866, type: WidthType.DXA },
+          width: { size: rightWidth, type: WidthType.DXA },
           borders: DOCX_NO_BORDERS,
           verticalAlign: VerticalAlignTable.TOP,
+          margins: DOCX_ZERO_CELL_MARGINS,
           children: [new Paragraph({
             style: DOCX_STYLE.metadata,
             alignment: AlignmentType.RIGHT,
@@ -747,13 +845,19 @@ function entryHeader(left, right, { font, color, rightColor = color, sidebar = f
   });
 }
 
-function workParagraphs(entries, { font, color, spacing, sidebar = false }) {
+function workParagraphs(entries, {
+  font,
+  color,
+  spacing,
+  sidebar = false,
+  availableWidth = DOCX_CONTENT_WIDTH,
+}) {
   return entries.flatMap(job => {
     const title = compactText(job.jobTitle) || 'Position';
     const date = formatResumeDateRange(job.startDate, job.endDate, job.currentJob);
     const employer = [job.employer, job.location].filter(Boolean).join(', ');
     return [
-      entryHeader(title, date, { font, color, sidebar }),
+      entryHeader(title, date, { font, color, sidebar, availableWidth }),
       // This keeps the company line with the first bullet, but not the
       // entire entry. Remaining bullets can use the rest of the page.
       ...(employer ? [paragraphText(employer, { font, color: sidebar ? 'FFFFFF' : '555555', size: 18, style: DOCX_STYLE.metadata, keepNext: true, spacing: { before: 0, after: spacing.paragraphAfter, line: spacing.line }, runOptions: { italics: true } })] : []),
@@ -762,12 +866,18 @@ function workParagraphs(entries, { font, color, spacing, sidebar = false }) {
   });
 }
 
-function educationParagraphs(entries, { font, color, spacing, sidebar = false }) {
+function educationParagraphs(entries, {
+  font,
+  color,
+  spacing,
+  sidebar = false,
+  availableWidth = DOCX_CONTENT_WIDTH,
+}) {
   return entries.flatMap(entry => {
     const degree = compactText(entry.degree || entry.level || 'Education');
     const school = [entry.schoolName, entry.fieldOfStudy, entry.location].filter(Boolean).join(', ');
     return [
-      entryHeader(degree, formatResumeMonth(entry.graduationDate), { font, color, sidebar }),
+      entryHeader(degree, formatResumeMonth(entry.graduationDate), { font, color, sidebar, availableWidth }),
       ...(school ? [paragraphText(school, { font, color: sidebar ? 'FFFFFF' : '555555', size: 18, style: DOCX_STYLE.metadata, keepNext: true, spacing: { before: 0, after: spacing.itemAfter, line: spacing.line }, runOptions: { italics: true } })] : []),
     ];
   });
@@ -775,13 +885,13 @@ function educationParagraphs(entries, { font, color, spacing, sidebar = false })
 
 function detailParagraphs(state, section, style) {
   const { skills = {}, websites = [], personalDetails = {}, certifications = {}, languages = [] } = state;
-  const { font, color, sidebar = false, spacing } = style;
+  const { font, color, sidebar = false, spacing, availableWidth = DOCX_CONTENT_WIDTH } = style;
   const textColor = sidebar ? 'FFFFFF' : '333333';
 
   switch (section) {
     case 'summary': return richParagraphs(state.summary?.content, { font, color: textColor, spacing });
-    case 'workHistory': return workParagraphs(state.workHistory || [], { font, color, sidebar, spacing });
-    case 'education': return educationParagraphs(state.education || [], { font, color, sidebar, spacing });
+    case 'workHistory': return workParagraphs(state.workHistory || [], { font, color, sidebar, spacing, availableWidth });
+    case 'education': return educationParagraphs(state.education || [], { font, color, sidebar, spacing, availableWidth });
     case 'skills': {
       const ratedSkills = ratedSkillEntries(skills.ratings);
       return ratedSkills.length
@@ -789,7 +899,7 @@ function detailParagraphs(state, section, style) {
           ? itemParagraphs(ratedSkills.map(skill => skill.name), {
             font, color: textColor, sidebar, bullet: true, forceSidebarBullets: true, spacing,
           })
-          : ratedSkillRows(ratedSkills, { font, color: textColor, sidebar, spacing })
+          : ratedSkillRows(ratedSkills, { font, color: textColor, sidebar, spacing, availableWidth })
         : richParagraphs(skills.textContent, { font, color: textColor, sidebar, spacing });
     }
     case 'websites': return itemParagraphs(websites.map(site => compactText(site?.url)), {
@@ -815,7 +925,13 @@ function sectionTitle(state, section, base) {
   return compactText(state.design?.sectionTitles?.[section]) || sectionLabel(section, base);
 }
 
-function docxSection(state, section, { font, color, sidebar = false, base }) {
+function docxSection(state, section, {
+  font,
+  color,
+  sidebar = false,
+  base,
+  availableWidth = DOCX_CONTENT_WIDTH,
+}) {
   const spacing = getResumeLayout(state).tokens.docx;
   const customSection = getCustomResumeSection(state, section);
   if (customSection) {
@@ -824,7 +940,7 @@ function docxSection(state, section, { font, color, sidebar = false, base }) {
       ? [docxSectionHeading(compactText(customSection.title) || 'Additional Information', { font, color, sidebar, spacing }), ...content]
       : [];
   }
-  const content = detailParagraphs(state, section, { font, color, sidebar, spacing });
+  const content = detailParagraphs(state, section, { font, color, sidebar, spacing, availableWidth });
   return content.length ? [docxSectionHeading(sectionTitle(state, section, base), { font, color, sidebar, spacing }), ...content] : [];
 }
 
@@ -877,13 +993,14 @@ function flowingDocxColumns({
   rightCellBorders = DOCX_NO_BORDERS,
   leftCellShading,
   rightCellShading,
-  leftMargins,
-  rightMargins,
+  leftMargins = DOCX_ZERO_CELL_MARGINS,
+  rightMargins = DOCX_ZERO_CELL_MARGINS,
 }) {
   const leftChunks = chunkDocxColumnSections(leftSections);
   const rightChunks = chunkDocxColumnSections(rightSections);
   const rowCount = Math.max(leftChunks.length, rightChunks.length, 1);
   const [leftWidth, rightWidth] = columnWidths;
+  const tableWidth = leftWidth + rightWidth;
   const emptyCell = () => [new Paragraph({ style: DOCX_STYLE.body, spacing: { after: 0 } })];
   const rowMargins = (margins, index) => ({ ...margins, top: index === 0 ? margins.top : 0 });
 
@@ -892,9 +1009,7 @@ function flowingDocxColumns({
   // first page. Independent, compact two-cell tables are free to follow one
   // another onto the current page or the next page as space permits.
   return Array.from({ length: rowCount }, (_, index) => new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths,
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(tableWidth, columnWidths),
     borders: index === 0 ? borders : { ...borders, top: DOCX_NO_BORDER },
     rows: [new TableRow({
       // Deliberately omit `cantSplit`: Word can now paginate between these
@@ -927,10 +1042,10 @@ function docxContactLine(contact) {
 
 function headerBanner(fullName, contactLine, { font, color }) {
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(DOCX_CONTENT_WIDTH),
     borders: DOCX_NO_BORDERS,
     rows: [new TableRow({ children: [new TableCell({
+      width: { size: DOCX_CONTENT_WIDTH, type: WidthType.DXA },
       borders: DOCX_NO_BORDERS,
       shading: { type: ShadingType.CLEAR, fill: color },
       margins: { top: 300, bottom: 260, left: 280, right: 280 },
@@ -951,10 +1066,10 @@ function headerSplit(fullName, contactLine, { font, color, variant }) {
   }
 
   const framed = variant === 'framed';
+  const columnWidths = splitDocxWidth(DOCX_CONTENT_WIDTH, 7000 / DOCX_CONTENT_WIDTH);
+  const [nameWidth, contactWidth] = columnWidths;
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [7000, 3466],
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(DOCX_CONTENT_WIDTH, columnWidths),
     borders: framed ? {
       top: { style: BorderStyle.SINGLE, size: 14, color },
       bottom: { style: BorderStyle.SINGLE, size: 14, color },
@@ -968,11 +1083,13 @@ function headerSplit(fullName, contactLine, { font, color, variant }) {
     },
     rows: [new TableRow({ children: [
       new TableCell({
+        width: { size: nameWidth, type: WidthType.DXA },
         borders: DOCX_NO_BORDERS,
         margins: { top: 150, bottom: 150, left: 20, right: 120 },
         children: [new Paragraph({ spacing: { after: 0 }, children: [textRun(fullName, { font, bold: true, color: '202020', size: 32 })] })],
       }),
       new TableCell({
+        width: { size: contactWidth, type: WidthType.DXA },
         borders: DOCX_NO_BORDERS,
         margins: { top: 165, bottom: 150, left: 120, right: 20 },
         verticalAlign: VerticalAlignTable.CENTER,
@@ -1054,12 +1171,17 @@ function accountantDocxChildren(state, { font, color, base }) {
   const contact = state.contact || {};
   const fullName = compactText([contact.firstName, contact.surname].filter(Boolean).join(' ')) || 'Your Name';
   const layout = getResumeLayout(state);
-  const { sectionOrder: order, columns, tokens } = layout;
+  const { sectionOrder: order, columns, tokens, sidebarPosition } = layout;
+  const columnWidths = [7200, 3266];
+  const leftMargins = { top: 260, bottom: 0, left: 0, right: 280 };
+  const rightMargins = { top: 260, bottom: 0, left: 280, right: 0 };
+  const leftContentWidth = docxInnerWidth(columnWidths[0], leftMargins);
+  const rightContentWidth = docxInnerWidth(columnWidths[1], rightMargins);
   const header = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    layout: TableLayoutType.FIXED,
+    ...fixedDocxTableGeometry(DOCX_CONTENT_WIDTH),
     borders: DOCX_NO_BORDERS,
     rows: [new TableRow({ children: [new TableCell({
+      width: { size: DOCX_CONTENT_WIDTH, type: WidthType.DXA },
       borders: DOCX_NO_BORDERS,
       shading: { type: ShadingType.CLEAR, fill: 'F1F1F0' },
       margins: { top: 340, bottom: 250, left: 300, right: 300 },
@@ -1070,17 +1192,19 @@ function accountantDocxChildren(state, { font, color, base }) {
     })] })],
   });
 
-  const summaryInLeftColumn = columns.sidebar.includes('summary');
-  const summary = summaryInLeftColumn ? docxSection(state, 'summary', { font, color, base }) : [];
+  const leftColumnIds = sidebarPosition === 'right' ? columns.main : columns.sidebar;
+  const rightColumnIds = sidebarPosition === 'right' ? columns.sidebar : columns.main;
+  const summaryInFullWidth = state.meta?.templateId === 'accountant' && leftColumnIds.includes('summary');
+  const summary = summaryInFullWidth ? docxSection(state, 'summary', { font, color, base }) : [];
   const mainSections = order
-    .filter(section => columns.sidebar.includes(section) && !(section === 'summary' && summaryInLeftColumn))
-    .map(section => docxSection(state, section, { font, color, base }));
+    .filter(section => leftColumnIds.includes(section) && !(section === 'summary' && summaryInFullWidth))
+    .map(section => docxSection(state, section, { font, color, base, availableWidth: leftContentWidth }));
   const contactContent = contactParagraphs(contact, { font, spacing: tokens.docx });
   const sidebarSections = [
     ...(contactContent.length ? [[docxSectionHeading('Contact', { font, color, spacing: tokens.docx }), ...contactContent]] : []),
     ...order
-      .filter(section => columns.main.includes(section))
-      .map(section => docxSection(state, section, { font, color, base })),
+      .filter(section => rightColumnIds.includes(section))
+      .map(section => docxSection(state, section, { font, color, base, availableWidth: rightContentWidth })),
   ];
 
   return [
@@ -1089,7 +1213,7 @@ function accountantDocxChildren(state, { font, color, base }) {
     ...flowingDocxColumns({
       leftSections: mainSections,
       rightSections: sidebarSections,
-      columnWidths: [7200, 3266],
+      columnWidths,
       borders: {
         top: { style: BorderStyle.SINGLE, size: 8, color: 'DDDDDB' },
         bottom: DOCX_NO_BORDER,
@@ -1099,8 +1223,8 @@ function accountantDocxChildren(state, { font, color, base }) {
         insideVertical: DOCX_NO_BORDER,
       },
       leftCellBorders: { ...DOCX_NO_BORDERS, right: { style: BorderStyle.SINGLE, size: 8, color: 'DDDDDB' } },
-      leftMargins: { top: 260, bottom: 0, left: 0, right: 280 },
-      rightMargins: { top: 260, bottom: 0, left: 280, right: 0 },
+      leftMargins,
+      rightMargins,
     }),
   ];
 }
@@ -1110,6 +1234,11 @@ function developerDocxChildren(state, { font, color, base }) {
   const fullName = compactText([contact.firstName, contact.surname].filter(Boolean).join(' ')) || 'Your Name';
   const layout = getResumeLayout(state);
   const { sectionOrder: order, columns } = layout;
+  const columnWidths = [4140, 6326];
+  const leftMargins = { top: 0, bottom: 0, left: 0, right: 260 };
+  const rightMargins = { top: 0, bottom: 0, left: 260, right: 0 };
+  const leftContentWidth = docxInnerWidth(columnWidths[0], leftMargins);
+  const rightContentWidth = docxInnerWidth(columnWidths[1], rightMargins);
   const contactLine = docxContactLine(contact);
   const header = [
     new Paragraph({ spacing: { after: 95 }, children: [textRun(fullName, { font, bold: true, color: '050505', size: 37, characterSpacing: 5 })] }),
@@ -1118,20 +1247,20 @@ function developerDocxChildren(state, { font, color, base }) {
   ];
   const leftSections = order
     .filter(section => columns.sidebar.includes(section))
-    .map(section => docxSection(state, section, { font, color, base }));
+    .map(section => docxSection(state, section, { font, color, base, availableWidth: leftContentWidth }));
   const rightSections = order
     .filter(section => columns.main.includes(section))
-    .map(section => docxSection(state, section, { font, color, base }));
+    .map(section => docxSection(state, section, { font, color, base, availableWidth: rightContentWidth }));
 
   return [
     ...header,
     ...flowingDocxColumns({
       leftSections,
       rightSections,
-      columnWidths: [4140, 6326],
+      columnWidths,
       borders: DOCX_NO_BORDERS,
-      leftMargins: { top: 0, bottom: 0, left: 0, right: 260 },
-      rightMargins: { top: 0, bottom: 0, left: 260, right: 0 },
+      leftMargins,
+      rightMargins,
     }),
   ];
 }
@@ -1141,6 +1270,11 @@ function timelineDocxChildren(state, { font, color, base }) {
   const fullName = compactText([contact.firstName, contact.surname].filter(Boolean).join(' ')) || 'Your Name';
   const layout = getResumeLayout(state);
   const { sectionOrder: order, columns, tokens } = layout;
+  const columnWidths = [3400, 7066];
+  const leftMargins = { top: 0, bottom: 0, left: 0, right: 250 };
+  const rightMargins = { top: 0, bottom: 0, left: 280, right: 0 };
+  const leftContentWidth = docxInnerWidth(columnWidths[0], leftMargins);
+  const rightContentWidth = docxInnerWidth(columnWidths[1], rightMargins);
   const header = [
     new Paragraph({ spacing: { after: 70 }, children: [textRun(fullName, { font, bold: true, color: '2E3A4D', size: 37, characterSpacing: 5 })] }),
     new Paragraph({ spacing: { after: 230 }, children: [textRun(headlineForTemplate(state, 'Professional'), { font, color: '333333', size: 23, characterSpacing: 2 })] }),
@@ -1150,22 +1284,22 @@ function timelineDocxChildren(state, { font, color, base }) {
     ...(contactContent.length ? [[docxSectionHeading('Contact', { font, color, spacing: tokens.docx }), ...contactContent]] : []),
     ...order
       .filter(section => columns.sidebar.includes(section))
-      .map(section => docxSection(state, section, { font, color, base })),
+      .map(section => docxSection(state, section, { font, color, base, availableWidth: leftContentWidth })),
   ];
   const rightSections = order
     .filter(section => columns.main.includes(section))
-    .map(section => docxSection(state, section, { font, color, base }));
+    .map(section => docxSection(state, section, { font, color, base, availableWidth: rightContentWidth }));
 
   return [
     ...header,
     ...flowingDocxColumns({
       leftSections,
       rightSections,
-      columnWidths: [3400, 7066],
+      columnWidths,
       borders: DOCX_NO_BORDERS,
       leftCellBorders: { ...DOCX_NO_BORDERS, right: { style: BorderStyle.SINGLE, size: 8, color: '4A4A4A' } },
-      leftMargins: { top: 0, bottom: 0, left: 0, right: 250 },
-      rightMargins: { top: 0, bottom: 0, left: 280, right: 0 },
+      leftMargins,
+      rightMargins,
     }),
   ];
 }
@@ -1178,10 +1312,10 @@ function editorialDocxChildren(state, { font, color, base }) {
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 55 }, children: [textRun(fullName, { font, color, size: 37 })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 180 }, children: [textRun(headlineForTemplate(state, 'Professional'), { font, color: '555555', size: 23 })] }),
     ...(contactLine ? [new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      layout: TableLayoutType.FIXED,
+      ...fixedDocxTableGeometry(DOCX_CONTENT_WIDTH),
       borders: DOCX_NO_BORDERS,
       rows: [new TableRow({ children: [new TableCell({
+        width: { size: DOCX_CONTENT_WIDTH, type: WidthType.DXA },
         borders: DOCX_NO_BORDERS,
         shading: { type: ShadingType.CLEAR, fill: 'F0F0F2' },
         margins: { top: 100, bottom: 100, left: 120, right: 120 },
@@ -1197,6 +1331,11 @@ function creativeDocxChildren(state, { font, color, base }) {
   const contact = state.contact || {};
   const fullName = compactText([contact.firstName, contact.surname].filter(Boolean).join(' ')) || 'Your Name';
   const { columns, tokens } = getResumeLayout(state);
+  const columnWidths = [DOCX_SIDEBAR_WIDTH, DOCX_MAIN_WIDTH];
+  const leftMargins = { top: 420, bottom: 0, left: 320, right: 320 };
+  const rightMargins = { top: 420, bottom: 0, left: 400, right: 400 };
+  const sidebarContentWidth = docxInnerWidth(columnWidths[0], leftMargins);
+  const mainContentWidth = docxInnerWidth(columnWidths[1], rightMargins);
   const sidebarSections = [
     [
       new Paragraph({ spacing: { before: 0, after: 120, line: tokens.docx.line }, children: [textRun(fullName, { font, bold: true, color: 'FFFFFF', size: 30 })] }),
@@ -1205,9 +1344,20 @@ function creativeDocxChildren(state, { font, color, base }) {
         { font, color: 'FFFFFF', sidebar: true, spacing: tokens.docx },
       ),
     ],
-    ...columns.sidebar.map(section => docxSection(state, section, { font, color, sidebar: true, base })),
+    ...columns.sidebar.map(section => docxSection(state, section, {
+      font,
+      color,
+      sidebar: true,
+      base,
+      availableWidth: sidebarContentWidth,
+    })),
   ];
-  const mainSections = columns.main.map(section => docxSection(state, section, { font, color, base }));
+  const mainSections = columns.main.map(section => docxSection(state, section, {
+    font,
+    color,
+    base,
+    availableWidth: mainContentWidth,
+  }));
 
   // A single page-height table row used to make Word reserve a whole page for
   // the Creative rails. Emit compact, independent blocks just like the other
@@ -1216,11 +1366,11 @@ function creativeDocxChildren(state, { font, color, base }) {
   return flowingDocxColumns({
     leftSections: sidebarSections,
     rightSections: mainSections,
-    columnWidths: [DOCX_SIDEBAR_WIDTH, DOCX_MAIN_WIDTH],
+    columnWidths,
     borders: DOCX_NO_BORDERS,
     leftCellShading: { type: ShadingType.CLEAR, fill: color },
-    leftMargins: { top: 420, bottom: 0, left: 320, right: 320 },
-    rightMargins: { top: 420, bottom: 0, left: 400, right: 400 },
+    leftMargins,
+    rightMargins,
   });
 }
 
@@ -1232,7 +1382,7 @@ export async function prepareDOCXExport({ state, resumeName }) {
 
   const color = hexColor(state.design?.colorScheme || '6B21A8');
   const base = templateBase(state.meta?.templateId || 'classic');
-  const font = base === 'ats-serif' && /^arial$/i.test(docxFontFamily(state)) ? 'Georgia' : docxFontFamily(state);
+  const font = base === 'ats-serif' && /^arial$/i.test(docxFontFamily(state)) ? 'Times New Roman' : docxFontFamily(state);
   const config = DOCX_TEMPLATE_CONFIG[base] || DOCX_TEMPLATE_CONFIG.classic;
   const docxSpacing = getResumeLayout(state).tokens.docx;
   const children = config.sidebar

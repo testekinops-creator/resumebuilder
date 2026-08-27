@@ -1,11 +1,14 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import { mergeAttributes, Node } from '@tiptap/core';
+import { Extension, mergeAttributes, Node } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ResumeIcon from './ResumeIcon';
+import { addToPersonalDictionary, analyzeTextQuality } from '../utils/resumeQuality';
 import './RichTextEditor.css';
 
 const DEFAULT_AI_RECOMMENDATIONS = [
@@ -14,6 +17,42 @@ const DEFAULT_AI_RECOMMENDATIONS = [
   'Implemented automated testing frameworks, improving code quality.',
   'Optimized database queries, resulting in faster data retrieval.',
 ];
+
+const QUALITY_PLUGIN_KEY = new PluginKey('resumeQualityHighlights');
+
+const QualityHighlights = Extension.create({
+  name: 'resumeQualityHighlights',
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      key: QUALITY_PLUGIN_KEY,
+      state: {
+        init: () => DecorationSet.empty,
+        apply(transaction, decorations) {
+          const next = transaction.getMeta(QUALITY_PLUGIN_KEY);
+          return next || decorations.map(transaction.mapping, transaction.doc);
+        },
+      },
+      props: {
+        decorations(editorState) { return QUALITY_PLUGIN_KEY.getState(editorState); },
+      },
+    })];
+  },
+});
+
+function collectEditorQualityIssues(editor, fieldId, ignoredFingerprints, ignoredWords) {
+  const issues = [];
+  editor.state.doc.descendants((node, position) => {
+    if (!node.isText || !node.text) return;
+    const nodeIssues = analyzeTextQuality(node.text, {
+      plainText: true,
+      ignoredFingerprints,
+      ignoredWords,
+      field: { fieldId, fieldPath: `${fieldId || 'rich-text'}:${position}` },
+    });
+    nodeIssues.forEach(issue => issues.push({ ...issue, from: position + issue.start, to: position + issue.end }));
+  });
+  return issues;
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -190,6 +229,9 @@ export default function RichTextEditor({
   aiModalOpen,
   onAIModalOpenChange,
   onApplyRecommendations,
+  fieldId = '',
+  qualityEnabled = true,
+  onQualityIssuesChange,
 }) {
   const [internalAIModalOpen, setInternalAIModalOpen] = useState(false);
   const visibleAiSuggestions = aiSuggestions.filter(suggestion => String(suggestion || '').trim());
@@ -197,6 +239,12 @@ export default function RichTextEditor({
   const suggestionCount = suggestionKey ? suggestionKey.split('\u0001').length : 0;
   const isAIModalOpen = typeof aiModalOpen === 'boolean' ? aiModalOpen : internalAIModalOpen;
   const [selectedAiIndexes, setSelectedAiIndexes] = useState([]);
+  const [qualityRevision, setQualityRevision] = useState(0);
+  const [qualityIssues, setQualityIssues] = useState([]);
+  const [activeQualityIssue, setActiveQualityIssue] = useState(null);
+  const [ignoredFingerprints, setIgnoredFingerprints] = useState(() => new Set());
+  const [ignoredWords, setIgnoredWords] = useState(() => new Set());
+  const wrapperRef = useRef(null);
 
   const setAIModalOpen = (isOpen) => {
     if (typeof aiModalOpen !== 'boolean') setInternalAIModalOpen(isOpen);
@@ -214,6 +262,10 @@ export default function RichTextEditor({
         code: false,
         blockquote: false,
         horizontalRule: false,
+        // These are configured explicitly below so their resume-specific
+        // behavior is registered exactly once in Tiptap 3.
+        link: false,
+        underline: false,
       }),
       Underline,
       ResumeImage,
@@ -222,17 +274,22 @@ export default function RichTextEditor({
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
       }),
       Placeholder.configure({ placeholder }),
+      QualityHighlights,
     ],
     content,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       onChange?.(html);
+      setQualityRevision(revision => revision + 1);
     },
     editorProps: {
       attributes: {
         class: 'rte-content',
         style: `min-height: ${minHeight}px; max-height: ${maxHeight}px`,
+        spellcheck: 'true',
+        autocorrect: 'on',
+        autocapitalize: 'sentences',
       },
     },
   });
@@ -244,8 +301,54 @@ export default function RichTextEditor({
     }
   }, [content, editor]);
 
+  useEffect(() => {
+    if (!editor || !qualityEnabled) return undefined;
+    const timer = window.setTimeout(() => {
+      const issues = collectEditorQualityIssues(editor, fieldId, ignoredFingerprints, ignoredWords);
+      const decorations = issues.map(issue => Decoration.inline(issue.from, issue.to, {
+        class: `rte-quality-issue rte-quality-${issue.category}`,
+        'data-quality-id': issue.fingerprint,
+        'aria-label': issue.title,
+      }));
+      editor.view.dispatch(editor.state.tr.setMeta(QUALITY_PLUGIN_KEY, DecorationSet.create(editor.state.doc, decorations)));
+      setQualityIssues(issues);
+      onQualityIssuesChange?.(issues);
+      setActiveQualityIssue(current => current && issues.find(issue => issue.fingerprint === current.fingerprint) || null);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [editor, fieldId, ignoredFingerprints, ignoredWords, onQualityIssuesChange, qualityEnabled, qualityRevision]);
+
+  useEffect(() => {
+    if (!editor || !fieldId) return;
+    const requestedField = window.sessionStorage.getItem('resumeBuilder_focusQualityField');
+    if (requestedField !== fieldId) return;
+    window.sessionStorage.removeItem('resumeBuilder_focusQualityField');
+    wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => editor.commands.focus('start'), 250);
+  }, [editor, fieldId]);
+
+  const replaceInlineIssue = (issue, replacement) => {
+    if (!editor || !issue || typeof replacement !== 'string') return;
+    editor.chain().focus().setTextSelection({ from: issue.from, to: issue.to }).insertContent(replacement).run();
+    setActiveQualityIssue(null);
+    setQualityRevision(revision => revision + 1);
+  };
+
+  const ignoreInlineIssue = (issue) => {
+    setIgnoredFingerprints(current => new Set([...current, issue.fingerprint]));
+    setActiveQualityIssue(null);
+  };
+
+  const ignoreInlineWord = (issue, persist = false) => {
+    const word = String(issue?.original || '').toLocaleLowerCase();
+    if (!word) return;
+    if (persist) addToPersonalDictionary(word);
+    setIgnoredWords(current => new Set([...current, word]));
+    setActiveQualityIssue(null);
+  };
+
   return (
-    <div className="rte-wrapper" style={{ position: 'relative' }}>
+    <div className="rte-wrapper" ref={wrapperRef} data-quality-field-id={fieldId || undefined} style={{ position: 'relative' }}>
       <MenuBar editor={editor} />
       {showEnhanceBtn && (
         <div className="rte-enhance-bar">
@@ -254,7 +357,45 @@ export default function RichTextEditor({
           </button>
         </div>
       )}
-      <EditorContent editor={editor} />
+      <div
+        className="rte-editor-surface"
+        onClick={(event) => {
+          const issueElement = event.target.closest?.('.rte-quality-issue');
+          if (!issueElement) return;
+          const issue = qualityIssues.find(item => item.fingerprint === issueElement.dataset.qualityId);
+          if (issue) setActiveQualityIssue(issue);
+        }}
+      >
+        <EditorContent editor={editor} />
+      </div>
+
+      {activeQualityIssue && (
+        <aside className="rte-quality-popover" role="dialog" aria-label="Writing suggestion">
+          <div className="rte-quality-popover-heading">
+            <div>
+              <strong>{activeQualityIssue.title}</strong>
+              <span>{activeQualityIssue.message}</span>
+            </div>
+            <button type="button" onClick={() => setActiveQualityIssue(null)} aria-label="Close writing suggestion"><ResumeIcon name="close" size={16} /></button>
+          </div>
+          {activeQualityIssue.suggestions.length > 0 && (
+            <div className="rte-quality-suggestions" aria-label="Suggested replacements">
+              {activeQualityIssue.suggestions.map(suggestion => (
+                <button type="button" key={suggestion} onClick={() => replaceInlineIssue(activeQualityIssue, suggestion)}>{suggestion}</button>
+              ))}
+            </div>
+          )}
+          <div className="rte-quality-actions">
+            <button type="button" onClick={() => ignoreInlineIssue(activeQualityIssue)}>Ignore once</button>
+            {activeQualityIssue.category === 'spelling' && (
+              <>
+                <button type="button" onClick={() => ignoreInlineWord(activeQualityIssue)}>Ignore all</button>
+                <button type="button" onClick={() => ignoreInlineWord(activeQualityIssue, true)}>Add to dictionary</button>
+              </>
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* AI Modal Overlay */}
       {isAIModalOpen && (

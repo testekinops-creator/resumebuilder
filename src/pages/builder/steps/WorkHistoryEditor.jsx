@@ -190,6 +190,7 @@ export default function WorkHistoryEditor() {
 
         <div className="panel work-editor-panel">
           <RichTextEditor
+            fieldId={`work-description-${currentWork?.id || 'current'}`}
             content={content}
             onChange={handleEditorChange}
             placeholder="Add your experience here..."

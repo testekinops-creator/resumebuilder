@@ -185,6 +185,7 @@ export default function SkillsEditor() {
               <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
             </div>
             <RichTextEditor
+              fieldId="skills-content"
               content={content}
               onChange={handleEditorChange}
               placeholder="Add your skills here..."

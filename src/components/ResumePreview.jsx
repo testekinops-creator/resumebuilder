@@ -8,8 +8,9 @@ import MinimalTemplate from './templates/MinimalTemplate';
 import ExecutiveTemplate from './templates/ExecutiveTemplate';
 import AccountantTemplate from './templates/AccountantTemplate';
 import DeveloperTemplate from './templates/DeveloperTemplate';
+import BlueprintTemplate from './templates/BlueprintTemplate';
 import { AtsSerifTemplate, EditorialTemplate, TimelineTemplate } from './templates/ReferenceTemplates';
-import { TEMPLATES } from '../data/templates';
+import { getTemplateById, getTemplateTheme } from '../data/templates';
 import { applyPreviewSectionTitles, getPreviewSectionId, getResumeLayout, getSectionDisplayName } from '../utils/resumeSections';
 import './ResumePreview.css';
 
@@ -25,6 +26,7 @@ const TEMPLATE_MAP = {
   timeline: TimelineTemplate,
   editorial: EditorialTemplate,
   'ats-serif': AtsSerifTemplate,
+  blueprint: BlueprintTemplate,
 };
 
 // Templates lay out at the native CSS A4 size so the print stylesheet can use
@@ -57,8 +59,14 @@ export default function ResumePreview({
   const [pageHeight, setPageHeight] = useState(A4_PAGE_HEIGHT_PX);
   const { design = {} } = state;
   const templateId = templateIdOverride || state.meta?.templateId || 'classic';
-  const template = TEMPLATES.find(item => item.id === templateId);
-  const themeColor = accentColor || design.colorScheme || template?.defaultColor || '#6B21A8';
+  const template = getTemplateById(templateId);
+  const selectedTheme = getTemplateTheme(template, design.themePreset, {
+    accent: accentColor || design.colorScheme,
+    heading: design.headingColor,
+    sidebar: design.sidebarColor,
+    divider: design.dividerColor,
+  });
+  const themeColor = selectedTheme.colors.accent;
   
   const fontSizeMap = { small: '10px', normal: '11px', large: '12px' };
   const fontSize = fontSizeMap[design.fontStyle] || '11px';
@@ -195,6 +203,9 @@ export default function ResumePreview({
       '--resume-paragraph-gap': layout.tokens.paragraphGap,
       '--resume-list-gap': layout.tokens.listGap,
       '--theme-color': themeColor,
+      '--theme-heading': selectedTheme.colors.heading,
+      '--theme-sidebar': selectedTheme.colors.sidebar,
+      '--theme-divider': selectedTheme.colors.divider,
     }}>
       <div
         className="preview-page"

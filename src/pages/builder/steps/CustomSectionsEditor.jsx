@@ -49,6 +49,7 @@ export default function CustomSectionsEditor() {
               <input className="form-input" value={titleFor(section.id)} onChange={event => updateTitle(section.id, event.target.value)} maxLength={60} />
             </label>
             <RichTextEditor
+              fieldId={`custom-section-content-${section.id}`}
               content={contentFor(section.id)}
               onChange={content => updateContent(section.id, content)}
               placeholder={`Add your ${displayTitleFor(section.id).toLowerCase()} here...`}

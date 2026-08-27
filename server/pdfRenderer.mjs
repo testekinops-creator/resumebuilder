@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import process from 'node:process';
 import puppeteer from 'puppeteer-core';
-import { TEMPLATES } from '../src/data/templates.js';
+import { getTemplateTheme, TEMPLATES } from '../src/data/templates.js';
 
 export const DEFAULT_PDF_EXPORT_URL = 'http://127.0.0.1:5193/pdf-export';
 export const MAX_PDF_EXPORT_BODY_BYTES = 4_000_000;
@@ -180,18 +180,30 @@ export function validatePdfExportPayload(payload) {
   }
 
   const template = TEMPLATE_BY_ID.get(templateId);
-  const requestedColor = state.design?.colorScheme;
+  const requestedDesign = state.design && typeof state.design === 'object' && !Array.isArray(state.design)
+    ? state.design
+    : {};
+  const requestedColor = requestedDesign.colorScheme;
   const colorScheme = typeof requestedColor === 'string' && /^#[\da-f]{6}$/i.test(requestedColor)
     ? requestedColor
     : template.defaultColor;
+  const themePreset = template.theme?.presets?.some(preset => preset.id === requestedDesign.themePreset)
+    ? requestedDesign.themePreset
+    : template.theme?.defaultPreset;
+  const templateTheme = getTemplateTheme(template, themePreset, { accent: colorScheme });
+  const safeThemeColor = (value, fallback) => typeof value === 'string' && /^#[\da-f]{6}$/i.test(value)
+    ? value
+    : fallback;
   const normalizedState = {
     ...state,
     meta: { ...state.meta, templateId },
     design: {
-      ...(state.design && typeof state.design === 'object' && !Array.isArray(state.design)
-        ? state.design
-        : {}),
+      ...requestedDesign,
+      themePreset,
       colorScheme,
+      headingColor: safeThemeColor(requestedDesign.headingColor, templateTheme.colors.heading),
+      sidebarColor: safeThemeColor(requestedDesign.sidebarColor, templateTheme.colors.sidebar),
+      dividerColor: safeThemeColor(requestedDesign.dividerColor, templateTheme.colors.divider),
     },
   };
 

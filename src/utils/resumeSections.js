@@ -1,3 +1,5 @@
+import { getTemplateById } from '../data/templates.js';
+
 export const RESUME_SECTION_LABELS = {
   summary: 'Professional Summary',
   workHistory: 'Work History',
@@ -22,32 +24,12 @@ export const DEFAULT_RESUME_SECTION_ORDER = [
   'summary', 'websites', 'skills', 'workHistory', 'education', 'personalDetails', 'certifications', 'languages',
 ];
 
-// These defaults preserve the original Creative template on existing resumes.
-// A saved sectionColumns value always wins, so every real section—including a
-// custom section—can move between the sidebar and the main content column.
+// `sidebar` and `main` are semantic rails. Their physical left/right position
+// is template metadata, so a right-sidebar design can keep the same persisted
+// section model without losing or reinterpreting resume content.
 export const DEFAULT_CREATIVE_SIDEBAR_SECTION_IDS = new Set([
   'skills', 'languages', 'personalDetails', 'websites',
 ]);
-
-// `sidebar` and `main` are the persisted left/right rails. Each template
-// keeps a different default composition until the user moves a section.
-const CREATIVE_TEMPLATE_IDS = new Set(['creative', 'canvas', 'coral', 'prism', 'muse']);
-const TIMELINE_TEMPLATE_IDS = new Set(['timeline']);
-const MODERN_TEMPLATE_IDS = new Set(['modern', 'orbit', 'nova', 'metro', 'azure']);
-const PROFESSIONAL_TEMPLATE_IDS = new Set(['professional', 'ledger', 'ivory', 'cobalt', 'sterling']);
-const MINIMAL_TEMPLATE_IDS = new Set(['minimal', 'mono', 'nordic', 'pebble', 'willow']);
-const EXECUTIVE_TEMPLATE_IDS = new Set(['executive', 'summit', 'regal', 'onyx', 'bordeaux']);
-const ACCOUNTANT_RIGHT_SECTION_IDS = new Set([
-  'skills', 'languages', 'personalDetails', 'websites', 'certifications',
-]);
-const DEVELOPER_LEFT_SECTION_IDS = new Set([
-  'summary', 'education', 'skills', 'personalDetails', 'websites', 'certifications', 'languages',
-]);
-
-function templateColumnFamily(templateId) {
-  if (TIMELINE_TEMPLATE_IDS.has(templateId)) return 'timeline';
-  return CREATIVE_TEMPLATE_IDS.has(templateId) ? 'creative' : templateId;
-}
 
 /**
  * A renderer-neutral description of the current resume presentation.
@@ -93,22 +75,13 @@ export function getResumeLayoutTokens(design = {}) {
   };
 }
 
-function getLayoutFamily(templateId) {
-  if (TIMELINE_TEMPLATE_IDS.has(templateId)) return 'timeline';
-  if (CREATIVE_TEMPLATE_IDS.has(templateId)) return 'creative';
-  if (MODERN_TEMPLATE_IDS.has(templateId)) return 'modern';
-  if (PROFESSIONAL_TEMPLATE_IDS.has(templateId)) return 'professional';
-  if (MINIMAL_TEMPLATE_IDS.has(templateId)) return 'minimal';
-  if (EXECUTIVE_TEMPLATE_IDS.has(templateId)) return 'executive';
-  return templateId === 'accountant' || templateId === 'developer' ? templateId : 'classic';
-}
-
 export function getResumeLayout(state, templateId = state.meta?.templateId) {
   const scopedState = templateId === state.meta?.templateId
     ? state
     : { ...state, meta: { ...state.meta, templateId } };
   const sectionOrder = getOrderedSectionIds(scopedState);
-  const family = getLayoutFamily(templateId);
+  const template = getTemplateById(templateId);
+  const family = template.baseTemplate || template.id;
   const columns = sectionOrder.reduce((result, sectionId) => {
     result[getSectionColumn(scopedState, sectionId)].push(sectionId);
     return result;
@@ -117,7 +90,9 @@ export function getResumeLayout(state, templateId = state.meta?.templateId) {
   return {
     templateId,
     family,
-    isTwoColumn: ['creative', 'timeline', 'accountant', 'developer'].includes(family),
+    isTwoColumn: template.layout === '2-column',
+    sidebarPosition: template.blueprint?.sidebarPosition || 'left',
+    columnLabels: template.columnLabels || { sidebar: 'Left column', main: 'Right column' },
     sectionOrder,
     columns,
     sections: sectionOrder.map((id, index) => ({
@@ -135,16 +110,11 @@ export function getResumeLayout(state, templateId = state.meta?.templateId) {
 }
 
 export function getDefaultSectionColumn(templateId, sectionId) {
-  switch (templateColumnFamily(templateId)) {
-    case 'accountant':
-      return ACCOUNTANT_RIGHT_SECTION_IDS.has(sectionId) ? 'main' : 'sidebar';
-    case 'developer':
-      return DEVELOPER_LEFT_SECTION_IDS.has(sectionId) ? 'sidebar' : 'main';
-    case 'timeline':
-    case 'creative':
-    default:
-      return DEFAULT_CREATIVE_SIDEBAR_SECTION_IDS.has(sectionId) ? 'sidebar' : 'main';
-  }
+  const template = getTemplateById(templateId);
+  if (template.layout !== '2-column') return 'main';
+  const sidebarDefaults = template.sectionDefaults?.sidebar;
+  if (Array.isArray(sidebarDefaults)) return sidebarDefaults.includes(sectionId) ? 'sidebar' : 'main';
+  return DEFAULT_CREATIVE_SIDEBAR_SECTION_IDS.has(sectionId) ? 'sidebar' : 'main';
 }
 
 export const SECTION_EDIT_ROUTES = {

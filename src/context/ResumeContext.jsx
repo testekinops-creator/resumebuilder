@@ -4,6 +4,8 @@ import { DEFAULT_RESUME_SECTION_ORDER, getOrderedSectionIds, getTemplateSectionL
 import { isCustomSectionId } from '../utils/optionalSections';
 import { sanitizeHTML } from '../utils/sanitize';
 import { DEFAULT_SHOW_SKILL_RATINGS, normalizeSkillRatingVisibility } from '../utils/skillRatings';
+import { replaceIssueInResume } from '../utils/resumeQuality';
+import { getTemplateTheme } from '../data/templates';
 
 const ResumeContext = createContext(null);
 
@@ -167,7 +169,11 @@ function createDefaultState() {
   // and files are intentionally never persisted in browser storage.
   importMeta: { quality: null, needsReview: [], sections: [], importedAt: null },
   design: {
+    themePreset: 'default',
     colorScheme: '#6B21A8',
+    headingColor: '#6B21A8',
+    sidebarColor: '#4C1D95',
+    dividerColor: '#C4B5FD',
     sectionOrder: [...DEFAULT_RESUME_SECTION_ORDER],
     fontStyle: 'normal',
     fontFamily: 'Inter',
@@ -204,6 +210,21 @@ function hydrateState(savedState) {
         sectionColumns: saved.design?.sectionColumns || defaults.design.sectionColumns,
       },
     };
+  const savedDesign = saved.design && typeof saved.design === 'object' ? saved.design : {};
+  const hasThemeMetadata = ['headingColor', 'sidebarColor', 'dividerColor', 'themePreset']
+    .some(key => Object.prototype.hasOwnProperty.call(savedDesign, key));
+  const migratedTheme = hasThemeMetadata
+    ? {}
+    : (() => {
+      const theme = getTemplateTheme(legacyTemplateId, undefined, { accent: savedDesign.colorScheme });
+      return {
+        themePreset: theme.id,
+        colorScheme: theme.colors.accent,
+        headingColor: theme.colors.heading,
+        sidebarColor: theme.colors.sidebar,
+        dividerColor: theme.colors.divider,
+      };
+    })();
 
   const hydrated = {
     ...defaults,
@@ -233,7 +254,7 @@ function hydrateState(savedState) {
       needsReview: Array.isArray(saved.importMeta?.needsReview) ? saved.importMeta.needsReview : [],
       sections: Array.isArray(saved.importMeta?.sections) ? saved.importMeta.sections : [],
     },
-    design: { ...defaults.design, ...saved.design, templateLayouts: migratedTemplateLayouts },
+    design: { ...defaults.design, ...migratedTheme, ...savedDesign, templateLayouts: migratedTemplateLayouts },
     _history: { past: [], future: [] },
   };
   return syncExtraSectionsAndOrder(hydrated);
@@ -506,6 +527,11 @@ function resumeReducer(state, action) {
 
     case 'SET_DESIGN':
       return saveHistory({ ...state, design: { ...state.design, ...action.payload } });
+
+    case 'APPLY_QUALITY_FIX': {
+      const nextState = replaceIssueInResume(state, action.payload?.finding, action.payload?.replacement);
+      return nextState === state ? state : saveHistory(nextState);
+    }
 
     case 'SET_SECTION_TITLE': {
       const { sectionId, title } = action.payload;

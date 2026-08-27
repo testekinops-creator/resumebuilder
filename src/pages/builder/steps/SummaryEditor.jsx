@@ -80,6 +80,7 @@ export default function SummaryEditor() {
 
         <div className="panel">
           <RichTextEditor
+            fieldId="summary-content"
             content={content}
             onChange={handleEditorChange}
             placeholder="Write your professional summary here..."

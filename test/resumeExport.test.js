@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import mammoth from 'mammoth';
+import JSZip from 'jszip';
 import { TEMPLATES } from '../src/data/templates.js';
 
 /**
@@ -63,6 +64,39 @@ function resumeState(templateId = 'classic') {
       templateLayouts: {},
     },
   };
+}
+
+function structuralResumeState(templateId) {
+  const state = resumeState(templateId);
+  state.contact = {
+    firstName: 'Zoë', surname: 'Łukasz', email: 'deepak.long.address@example.com',
+    phone: '+91 98765 43210', city: 'Bengaluru', country: 'India',
+  };
+  state.summary.content = '<p>Results-focused quality engineer who improves reliable releases across complex platforms.</p>';
+  state.workHistory = [
+    {
+      id: 'work-1', jobTitle: 'Senior Quality Automation Engineer for International Platforms',
+      employer: 'Northstar Technology and Product Engineering Services', location: 'Bengaluru, India',
+      startDate: '2022-11', currentJob: true,
+      description: '<ul><li>Designed functional, regression, and integration suites for high-volume customer journeys.</li><li>Validated APIs, Unicode data such as café and naïve, and error handling across releases.</li></ul>',
+    },
+    {
+      id: 'work-2', jobTitle: 'Quality Engineer', employer: 'Previous Company',
+      startDate: '2020-01', endDate: '2022-10',
+      description: '<ul><li>Maintained traceable test data and documented reproducible results.</li></ul>',
+    },
+  ];
+  state.education = [{ id: 'education-1', degree: 'Bachelor of Science', schoolName: 'City University', fieldOfStudy: 'Computer Science', graduationDate: '2019-07' }];
+  state.skills = { showRatings: true, textContent: '', ratings: [
+    { id: 'skill-1', name: 'Selenium WebDriver and Playwright', rating: 5 },
+    { id: 'skill-2', name: 'REST API automation', rating: 4 },
+  ] };
+  state.websites = [{ id: 'site-1', url: 'https://portfolio.example.com/profiles/deepak-hegde/quality-engineering-and-automation' }];
+  state.personalDetails = { nationality: 'Indian' };
+  state.certifications = { content: '<p>ISTQB Certified Tester</p>' };
+  state.languages = [{ id: 'language-1', language: 'English' }, { id: 'language-2', language: 'Português' }];
+  state.extraSections = { selected: ['custom-projects'], custom: [{ id: 'custom-projects', title: 'Projects', content: '<p>Created a reusable accessibility and API quality platform.</p>' }] };
+  return state;
 }
 
 function validPdfResponse() {
@@ -233,6 +267,57 @@ test('prepares a DOCX artifact with the OOXML MIME type and ZIP signature', asyn
     [...new Uint8Array(await artifact.blob.slice(0, 2).arrayBuffer())],
     RESUME_EXPORT_FORMATS.docx.signature,
   );
+});
+
+test('every template emits fixed-width, mobile-safe Word-native OOXML', async () => {
+  const forbiddenPositioning = /<(?:wp:anchor|w:framePr|w:tblpPr|v:textbox|wps:wsp)\b/i;
+  const attribute = (tag, name) => new RegExp(`\\b${name}="([^"]+)"`).exec(tag)?.[1];
+
+  for (const template of TEMPLATES) {
+    const artifact = await prepareDOCXExport({
+      state: structuralResumeState(template.id),
+      resumeName: `Mobile Compatibility ${template.id}`,
+    });
+    const zip = await JSZip.loadAsync(Buffer.from(await artifact.blob.arrayBuffer()));
+    const documentXml = await zip.file('word/document.xml').async('string');
+    const numberingXml = await zip.file('word/numbering.xml').async('string');
+
+    assert.doesNotMatch(documentXml, forbiddenPositioning, `${template.id} must not contain floating or positioned primary content`);
+    assert.doesNotMatch(documentXml, /<w:tblW\b[^>]*w:type="pct"/i, `${template.id} must not use percentage table widths`);
+    assert.doesNotMatch(documentXml, /<w:tcW\b[^>]*w:type="pct"/i, `${template.id} must not use percentage cell widths`);
+    assert.doesNotMatch(documentXml, /<w:t[^>]*>\s*[•★☆]\s*<\/w:t>/u, `${template.id} must use native bullets and portable rating text`);
+
+    const pageSizeTag = documentXml.match(/<w:pgSz\b[^>]*\/?\s*>/i)?.[0] || '';
+    const pageMarginTag = documentXml.match(/<w:pgMar\b[^>]*\/?\s*>/i)?.[0] || '';
+    assert.equal(attribute(pageSizeTag, 'w:w'), '11906', `${template.id} must use A4 width`);
+    assert.equal(attribute(pageSizeTag, 'w:h'), '16838', `${template.id} must use A4 height`);
+    for (const edge of ['top', 'right', 'bottom', 'left']) assert.equal(attribute(pageMarginTag, `w:${edge}`), '720', `${template.id} must use stable ${edge} margin`);
+
+    const tableDefinitions = [...documentXml.matchAll(/<w:tblPr>([\s\S]*?)<\/w:tblPr><w:tblGrid>([\s\S]*?)<\/w:tblGrid>/g)];
+    assert.ok(tableDefinitions.length > 0, `${template.id} should contain at least one fixed Word table`);
+    for (const [, tableProperties, tableGrid] of tableDefinitions) {
+      const tableWidthTag = tableProperties.match(/<w:tblW\b[^>]*\/?\s*>/i)?.[0] || '';
+      const width = Number(attribute(tableWidthTag, 'w:w'));
+      const widthType = attribute(tableWidthTag, 'w:type');
+      const grid = [...tableGrid.matchAll(/<w:gridCol\b[^>]*\/?\s*>/gi)]
+        .map(match => Number(attribute(match[0], 'w:w')))
+        .filter(Number.isFinite);
+      assert.equal(widthType, 'dxa', `${template.id} table width must be absolute DXA`);
+      assert.ok(width > 0, `${template.id} table width must be positive`);
+      assert.ok(grid.length > 0, `${template.id} table must declare a fixed grid`);
+      assert.equal(grid.reduce((sum, value) => sum + value, 0), width, `${template.id} grid columns must exactly equal table width`);
+      assert.match(tableProperties, /<w:tblLayout\b[^>]*w:type="fixed"/i, `${template.id} table auto-fit must be disabled`);
+    }
+
+    assert.match(documentXml, /<w:keepNext\b/i, `${template.id} headings must stay with their first content block`);
+    assert.match(documentXml, /<w:cantSplit\b/i, `${template.id} job header rows must not split`);
+    assert.match(numberingXml, /<w:numFmt\b[^>]*w:val="bullet"/i, `${template.id} must define native Word bullets`);
+    assert.match(documentXml, /Zoë/);
+    assert.match(documentXml, /Łukasz/);
+    assert.match(documentXml, /café/);
+    assert.match(documentXml, /Português/);
+    assert.doesNotMatch(documentXml, /â€™|â€œ|â€|ï¿½|�/, `${template.id} must not introduce mojibake`);
+  }
 });
 
 test('DOCX output uses the shared professional month format', async () => {

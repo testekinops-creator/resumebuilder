@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
 import {
@@ -23,6 +23,7 @@ import {
   saveQualityIgnore,
 } from '../../utils/resumeQuality';
 import { generateDOCX, generatePDF, printResume } from '../../utils/pdfGenerator';
+import { getNextTabId, getTabScrollLeft } from '../../utils/finalizeNavigation';
 import {
   dismissFinalizeWelcome,
   exportResumeJSON,
@@ -41,6 +42,13 @@ const PAGE_BORDER_OPTIONS = [
   { id: 'thin', label: 'Thin', description: '0.75pt accent border' },
   { id: 'medium', label: 'Medium', description: '1.5pt accent border' },
   { id: 'thick', label: 'Thick', description: '3pt accent border' },
+];
+
+const FINALIZE_TABS = [
+  { id: 'templates', label: 'Templates', icon: 'template' },
+  { id: 'design', label: 'Design', icon: 'design' },
+  { id: 'sections', label: 'Sections', icon: 'sections' },
+  { id: 'check', label: 'Resume Check', icon: 'shield' },
 ];
 
 const PANEL_SCROLL_SELECTOR = '.fe-tool-content, .fe-workspace, .fe-reorder-list';
@@ -107,6 +115,7 @@ export default function FinalEditor() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPreviewViewer, setShowPreviewViewer] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  const [showReviewActions, setShowReviewActions] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [generating, setGenerating] = useState('');
   const [notification, setNotification] = useState(null);
@@ -122,6 +131,7 @@ export default function FinalEditor() {
   const previewRef = useRef(null);
   const workspaceRef = useRef(null);
   const toolContentRef = useRef(null);
+  const tabListRef = useRef(null);
   const exportJobRef = useRef('');
   const selectedTemplate = getTemplateById(state.meta?.templateId);
   const visibleTemplates = filterTemplates(templateCategory);
@@ -381,13 +391,30 @@ export default function FinalEditor() {
     scrollPanel?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const tabs = [
-    { id: 'templates', label: 'Templates', icon: 'template' },
-    { id: 'design', label: 'Design', icon: 'design' },
-    { id: 'sections', label: 'Sections', icon: 'sections' },
-    { id: 'check', label: 'Resume Check', icon: 'shield' },
-  ];
-  const scoreColor = completeness >= 80 ? 'var(--color-success)' : completeness >= 50 ? 'var(--color-warning)' : 'var(--color-error)';
+  const activateTab = (tabId) => {
+    setActiveTab(tabId);
+    window.requestAnimationFrame(scrollToolsToTop);
+  };
+
+  const openResumeCheck = () => {
+    setShowReviewActions(false);
+    activateTab('check');
+    window.requestAnimationFrame(() => {
+      tabListRef.current?.querySelector('[data-tab-id="check"]')?.focus({ preventScroll: true });
+    });
+  };
+
+  const scoreColor = completeness >= 80 ? 'var(--fe-completion-success)' : completeness >= 50 ? 'var(--fe-completion-warning)' : 'var(--fe-completion-error)';
+  const actionPanelProps = {
+    completeness, scoreColor, pageCount, reviewFindings,
+    qualityScore: qualityReport.score,
+    generating,
+    onOpenCheck: openResumeCheck,
+    onDownload: (format) => { setShowReviewActions(false); handleDownload(format); },
+    onPrint: () => { setShowReviewActions(false); handlePrint(); },
+    onEmail: () => { setShowReviewActions(false); setShowEmailDialog(true); },
+    onFinish: () => { setShowReviewActions(false); setShowAuthModal(true); },
+  };
 
   return (
     <div className="final-editor">
@@ -414,20 +441,20 @@ export default function FinalEditor() {
           <span className="fe-zoom">{zoom}%</span>
           <button className="btn btn-icon btn-ghost" onClick={() => setZoom(value => Math.min(value + 10, 150))} title="Zoom in">+</button>
         </div>
-        <div className="fe-topbar-right"><span className="fe-saved"><ResumeIcon name="finish" size={15} />Saved</span></div>
+        <div className="fe-topbar-right">
+          <button type="button" className="btn btn-outline-dark fe-review-actions-toggle" onClick={() => setShowReviewActions(true)} aria-haspopup="dialog">
+            <ResumeIcon name="shield" size={16} />Review &amp; actions
+          </button>
+          <span className="fe-saved"><ResumeIcon name="finish" size={15} />Saved</span>
+        </div>
       </header>
 
       <div className="fe-workspace" ref={workspaceRef}>
         <div className="fe-body">
         <aside className="fe-tools">
-          <div className="fe-tool-tabs">
-            {tabs.map(tab => (
-              <button key={tab.id} className={`fe-tool-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}><ResumeIcon name={tab.icon} size={16} />{tab.label}</button>
-            ))}
-          </div>
+          <FinalizeTabs activeTab={activeTab} onChange={activateTab} tabListRef={tabListRef} />
 
-          <div className="fe-tool-content" ref={toolContentRef}>
+          <div className="fe-tool-content" ref={toolContentRef} id="fe-tool-panel" role="tabpanel" aria-labelledby={`fe-tab-${activeTab}`} tabIndex={0}>
             {activeTab === 'templates' && (
               <div className="fe-templates-panel">
                 <h3>Quick accent</h3>
@@ -656,45 +683,14 @@ export default function FinalEditor() {
           </div>
         </main>
 
-        <aside className="fe-actions">
-          <div className="fe-score-card">
-            <div className="fe-score-circle" style={{ '--score-color': scoreColor, '--score-pct': completeness }}>
-              <svg viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="35" fill="none" stroke="var(--color-border)" strokeWidth="5" />
-                <circle cx="40" cy="40" r="35" fill="none" stroke={scoreColor} strokeWidth="5"
-                  strokeDasharray={`${completeness * 2.2} 220`} strokeLinecap="round" transform="rotate(-90, 40, 40)" />
-              </svg>
-              <span className="fe-score-value">{completeness}</span>
-            </div>
-            <span className="fe-score-label">Profile completion</span>
-          </div>
-          <div className="fe-page-count" aria-live="polite">
-            <ResumeIcon name="document" size={16} />
-            <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'} in preview</span>
-          </div>
-          <ResumeReview findings={reviewFindings} id="resume-review-title" score={qualityReport.score} onOpen={() => setActiveTab('check')} />
-          <FinalizeActionButtons
-            generating={generating}
-            onDownload={handleDownload}
-            onPrint={handlePrint}
-            onEmail={() => setShowEmailDialog(true)}
-            onFinish={() => setShowAuthModal(true)}
-          />
+        <aside className="fe-actions" aria-label="Resume review and actions">
+          <FinalizeActionPanel {...actionPanelProps} idPrefix="desktop" />
         </aside>
         </div>
 
-      <section className="fe-mobile-summary" aria-labelledby="mobile-finalize-title">
-        <div className="fe-mobile-completion">
-          <div>
-            <h2 id="mobile-finalize-title">Ready to finish</h2>
-            <span>{completeness}% complete</span>
-          </div>
-          <span className="fe-mobile-page-count"><ResumeIcon name="document" size={16} />{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
-          <div className="fe-mobile-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={completeness}>
-            <span style={{ width: `${completeness}%`, background: scoreColor }} />
-          </div>
-        </div>
-        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" score={qualityReport.score} onOpen={() => setActiveTab('check')} />
+      <section className="fe-mobile-summary" aria-label="Review and finish your resume">
+        <ProfileCompletion completeness={completeness} scoreColor={scoreColor} pageCount={pageCount} id="mobile-profile-completion" compact />
+        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" score={qualityReport.score} onOpen={openResumeCheck} />
         <FinalizeActionButtons
           generating={generating}
           onDownload={handleDownload}
@@ -705,6 +701,12 @@ export default function FinalEditor() {
         />
       </section>
       </div>
+
+      {showReviewActions && (
+        <FinalizeReviewDrawer onClose={() => setShowReviewActions(false)}>
+          <FinalizeActionPanel {...actionPanelProps} idPrefix="drawer" />
+        </FinalizeReviewDrawer>
+      )}
 
       <nav className="fe-mobile-primary-bar" aria-label="Finalize resume actions">
         <button className="btn btn-outline-dark" onClick={() => setShowPreviewViewer(true)}>
@@ -761,10 +763,9 @@ export default function FinalEditor() {
               <button type="button" className="btn btn-ghost" onClick={() => setPendingDownload('')}>Cancel</button>
               <button type="button" className="btn btn-outline-dark" onClick={() => {
                 setPendingDownload('');
-                setActiveTab('check');
+                openResumeCheck();
                 setQualityCategory('all');
                 setQualityIssueIndex(0);
-                scrollToolsToTop();
               }}>Review issues</button>
               <button type="button" className="btn btn-primary" onClick={() => {
                 const format = pendingDownload;
@@ -959,13 +960,140 @@ function getSectionDisplayNameForIssue(sectionId) {
   return labels[sectionId] || (String(sectionId).startsWith('custom-') ? 'Custom section' : sectionId);
 }
 
+function FinalizeTabs({ activeTab, onChange, tabListRef }) {
+  useLayoutEffect(() => {
+    const strip = tabListRef.current;
+    if (!strip) return undefined;
+
+    const revealSelectedTab = () => {
+      const selectedTab = strip.querySelector('[aria-selected="true"]');
+      if (!selectedTab) return;
+      const stripRect = strip.getBoundingClientRect();
+      const tabRect = selectedTab.getBoundingClientRect();
+      const left = getTabScrollLeft({
+        scrollLeft: strip.scrollLeft,
+        viewportWidth: strip.clientWidth,
+        scrollWidth: strip.scrollWidth,
+        tabStart: tabRect.left - stripRect.left + strip.scrollLeft,
+        tabEnd: tabRect.right - stripRect.left + strip.scrollLeft,
+      });
+      if (Math.abs(left - strip.scrollLeft) > 0.5) strip.scrollTo({ left, behavior: 'auto' });
+    };
+
+    revealSelectedTab();
+    const observer = new ResizeObserver(revealSelectedTab);
+    observer.observe(strip);
+    strip.querySelectorAll('[role="tab"]').forEach(tab => observer.observe(tab));
+    return () => observer.disconnect();
+  }, [activeTab, tabListRef]);
+
+  const onKeyDown = (event) => {
+    const nextTab = getNextTabId(FINALIZE_TABS.map(tab => tab.id), activeTab, event.key);
+    if (!nextTab) return;
+    event.preventDefault();
+    onChange(nextTab);
+    tabListRef.current?.querySelector(`[data-tab-id="${nextTab}"]`)?.focus({ preventScroll: true });
+  };
+
+  return (
+    <div className="fe-tool-tabs" ref={tabListRef} role="tablist" aria-label="Finalize tools" aria-orientation="horizontal">
+      {FINALIZE_TABS.map(tab => (
+        <button key={tab.id} type="button" id={`fe-tab-${tab.id}`} data-tab-id={tab.id}
+          className={`fe-tool-tab ${activeTab === tab.id ? 'active' : ''}`}
+          role="tab" aria-selected={activeTab === tab.id} aria-controls="fe-tool-panel"
+          tabIndex={activeTab === tab.id ? 0 : -1}
+          onClick={() => onChange(tab.id)} onKeyDown={onKeyDown}>
+          <ResumeIcon name={tab.icon} size={16} /><span>{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProfileCompletion({ completeness, scoreColor, pageCount, id, compact = false }) {
+  return (
+    <section className={`fe-profile-completion ${compact ? 'is-compact' : ''}`} aria-labelledby={id}>
+      <div className="fe-profile-layout">
+        <span className="visually-hidden" role="progressbar" aria-label="Profile completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completeness} />
+        <div className="fe-score-circle" aria-hidden="true">
+          <svg viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="35" fill="none" stroke="var(--color-border)" strokeWidth="5" />
+            <circle cx="40" cy="40" r="35" fill="none" stroke={scoreColor} strokeWidth="5"
+              strokeDasharray={`${completeness * 2.2} 220`} strokeLinecap="round" transform="rotate(-90, 40, 40)" />
+          </svg>
+          <span className="fe-score-value">{completeness}</span>
+        </div>
+        <div className="fe-profile-heading">
+          <h2 className="fe-score-label" id={id}>Profile completion</h2>
+          <span className="fe-profile-percentage" aria-hidden="true">{completeness}%</span>
+        </div>
+        <div className="fe-profile-progress" aria-hidden="true">
+          <span style={{ width: `${completeness}%`, background: scoreColor }} />
+        </div>
+        <div className="fe-page-count" aria-live="polite">
+          <ResumeIcon name="document" size={16} />
+          <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'} in preview</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalizeActionPanel({ idPrefix, completeness, scoreColor, pageCount, reviewFindings, qualityScore, onOpenCheck, ...actions }) {
+  return (
+    <div className="fe-action-panel">
+      <ProfileCompletion completeness={completeness} scoreColor={scoreColor} pageCount={pageCount} id={`${idPrefix}-profile-completion`} />
+      <ResumeReview findings={reviewFindings} id={`${idPrefix}-resume-review-title`} score={qualityScore} onOpen={onOpenCheck} />
+      <FinalizeActionButtons {...actions} />
+    </div>
+  );
+}
+
+function FinalizeReviewDrawer({ children, onClose }) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      previousFocus?.focus?.({ preventScroll: true });
+    };
+  }, []);
+
+  return (
+    <dialog ref={dialogRef} className="fe-review-drawer" aria-labelledby="fe-review-drawer-title" onCancel={onClose}
+      onKeyDown={event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          onClose();
+        }
+      }}
+      onClick={event => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
+      }}>
+      <header className="fe-review-drawer-header">
+        <h2 id="fe-review-drawer-title">Review &amp; actions</h2>
+        <button type="button" className="btn btn-icon btn-ghost" onClick={onClose} aria-label="Close review and actions" autoFocus><ResumeIcon name="close" size={20} /></button>
+      </header>
+      {children}
+    </dialog>
+  );
+}
+
 function ResumeReview({ findings, id, score, onOpen }) {
   const visibleFindings = findings.slice(0, 3);
   return (
     <section className="fe-resume-review" aria-labelledby={id}>
       <div className="fe-resume-review-heading">
         <h2 id={id}>Resume Check</h2>
-        <span>{score}/100 · {findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
+        <div className="fe-review-status">
+          <span className="fe-review-score" aria-label={`Resume Check score ${score} out of 100`}>{score}/100</span>
+          <span className="fe-review-count">{findings.length ? `${findings.length} to review` : 'Looking complete'}</span>
+        </div>
       </div>
       {visibleFindings.length ? (
         <ul>
@@ -979,8 +1107,8 @@ function ResumeReview({ findings, id, score, onOpen }) {
       ) : (
         <p>Core resume details are present. Review each section for relevance before exporting.</p>
       )}
-      {findings.length > visibleFindings.length && <p className="fe-resume-review-more">+{findings.length - visibleFindings.length} more helpful checks</p>}
-      <button type="button" className="btn btn-sm btn-outline-dark fe-open-check" onClick={onOpen}>Open Resume Check</button>
+      {findings.length > visibleFindings.length && <button type="button" className="fe-resume-review-more" onClick={onOpen}>+{findings.length - visibleFindings.length} more helpful checks</button>}
+      <button type="button" className="btn btn-outline-dark fe-open-check" onClick={onOpen}>Open Resume Check</button>
     </section>
   );
 }

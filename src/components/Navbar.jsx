@@ -9,9 +9,9 @@ export default function Navbar() {
   return (
     <nav className="navbar" role="navigation" aria-label="Main navigation">
       <div className="navbar-container">
-        <Link to="/" className="navbar-brand">
+        <Link to="/" className="navbar-brand" aria-label="Resume Builder home">
           <div className="navbar-logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false">
               <defs>
                 <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
                   <stop offset="0%" stopColor="#E84D39" />
@@ -24,16 +24,17 @@ export default function Navbar() {
           </div>
           <span className="navbar-title">Resume Builder</span>
         </Link>
+        <button
+          type="button"
+          className="btn-icon theme-toggle"
+          onClick={toggle}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle dark mode"
+          aria-pressed={isDark}
+        >
+          <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
+        </button>
         <div className="navbar-actions">
-          <button
-            className="btn-icon theme-toggle"
-            onClick={toggle}
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle dark mode"
-            aria-pressed={isDark}
-          >
-            <ResumeIcon name={isDark ? 'sun' : 'moon'} size={18} />
-          </button>
           <NavLink
             to="/dashboard"
             end
@@ -42,12 +43,10 @@ export default function Navbar() {
             title="My Resumes"
           >
             <ResumeIcon name="document" size={17} />
-            <span className="navbar-my-resumes-long">My Resumes</span>
-            <span className="navbar-my-resumes-short">Resumes</span>
+            <span>My Resumes</span>
           </NavLink>
           <Link to="/get-started" className="btn btn-accent btn-sm navbar-build-cta">
-            <span className="navbar-cta-long">Build My Resume</span>
-            <span className="navbar-cta-short">Build Resume</span>
+            <span>Build My Resume</span>
           </Link>
         </div>
       </div>

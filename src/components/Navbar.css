@@ -1,4 +1,7 @@
 .navbar {
+  container: app-navigation / inline-size;
+  min-width: 0;
+  width: 100%;
   position: sticky;
   top: 0;
   background: var(--color-navbar-bg);
@@ -8,13 +11,16 @@
 }
 
 .navbar-container {
+  width: 100%;
+  min-width: 0;
   max-width: 1320px;
   margin: 0 auto;
   padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-6), env(safe-area-inset-right))
     var(--space-3) max(var(--space-6), env(safe-area-inset-left));
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px auto;
+  gap: var(--space-3);
   align-items: center;
-  justify-content: space-between;
 }
 
 .navbar-brand {
@@ -24,6 +30,9 @@
   text-decoration: none;
   color: var(--color-navbar-text);
   min-width: 0;
+  min-height: 44px;
+  max-width: 100%;
+  justify-self: start;
 }
 
 .navbar-logo,
@@ -36,6 +45,8 @@
 }
 
 .navbar-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-navbar-text);
@@ -45,17 +56,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.navbar-cta-short,
-.navbar-my-resumes-short {
-  display: none;
-}
-
-.theme-toggle {
+.navbar .theme-toggle {
   width: 44px;
   height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-navbar-text);
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -68,19 +78,26 @@
   padding: 0;
 }
 
-.theme-toggle:hover {
+.navbar .theme-toggle:hover {
+  color: var(--color-navbar-text);
   background: rgba(255, 255, 255, 0.2);
   transform: rotate(10deg) translateY(-1px);
 }
 
-.theme-toggle:focus-visible {
+.navbar .theme-toggle:focus-visible {
   outline-color: var(--color-accent);
   outline-offset: 3px;
 }
 
 .navbar-actions .btn {
+  min-width: 44px;
   min-height: 44px;
+  line-height: 1.25;
   padding-inline: var(--space-5);
+}
+
+.navbar-actions .btn span {
+  min-width: 0;
 }
 
 .navbar-my-resumes {
@@ -109,42 +126,47 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 720px) {
-  .navbar-my-resumes-long { display: none; }
-  .navbar-my-resumes-short { display: inline; }
-}
-
-@media (max-width: 520px) {
-  .navbar-my-resumes {
-    width: 44px;
-    padding-inline: 0;
-  }
-
-  .navbar-my-resumes-short { display: none; }
-}
-
-@media (max-width: 480px) {
+/* Keep every action visible instead of squeezing or hiding its label. */
+@container app-navigation (width <= 40rem) {
   .navbar-container {
-    padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
-      var(--space-3) max(var(--space-4), env(safe-area-inset-left));
-  }
-  .navbar-title {
-    font-size: var(--font-size-base);
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: var(--space-2);
+    padding-inline: max(var(--space-3), env(safe-area-inset-left)) max(var(--space-3), env(safe-area-inset-right));
   }
 
-  .navbar-actions { gap: var(--space-2); }
-  .navbar-actions .btn { padding-inline: var(--space-4); }
-  .navbar-cta-long { display: none; }
-  .navbar-cta-short { display: inline; }
+  .navbar-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .navbar-actions .btn {
+    padding-inline: var(--space-3);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
-@media (max-width: 420px) {
-  .navbar-title { display: none; }
-}
+@supports not (container-type: inline-size) {
+  @media (width <= 40rem) {
+    .navbar-container {
+      grid-template-columns: minmax(0, 1fr) 44px;
+      gap: var(--space-2);
+      padding-inline: max(var(--space-3), env(safe-area-inset-left)) max(var(--space-3), env(safe-area-inset-right));
+    }
 
-@media (max-width: 380px) {
-  .navbar-container {
-    padding-right: max(var(--space-3), env(safe-area-inset-right));
-    padding-left: max(var(--space-3), env(safe-area-inset-left));
+    .navbar-actions {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .navbar-actions .btn {
+      padding-inline: var(--space-3);
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
 }

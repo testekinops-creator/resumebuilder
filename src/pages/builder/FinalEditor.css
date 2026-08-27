@@ -1,4 +1,7 @@
 .final-editor {
+  --fe-completion-success: #047857;
+  --fe-completion-warning: #a16207;
+  --fe-completion-error: #dc2626;
   background: var(--color-surface-tertiary);
   flex-direction: column;
   height: 100vh;
@@ -7,6 +10,13 @@
   display: flex;
   overflow: hidden;
   isolation: isolate;
+  container: finalize-layout / inline-size;
+}
+
+[data-theme="dark"] .final-editor {
+  --fe-completion-success: #34d399;
+  --fe-completion-warning: #fbbf24;
+  --fe-completion-error: #f87171;
 }
 
 .fe-topbar {
@@ -143,7 +153,9 @@
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   flex-direction: column;
-  width: 280px;
+  width: clamp(18rem,23cqi,28rem);
+  min-width: 0;
+  flex: 0 0 clamp(18rem,23cqi,28rem);
   height: 100%;
   min-height: 0;
   display: flex;
@@ -158,24 +170,32 @@
   flex: 0 0 auto;
   display: flex;
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .fe-tool-tab {
   padding: var(--space-3) var(--space-2);
   min-width: 0;
-  font-size: var(--font-size-xs);
+  min-height: 48px;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   transition: all var(--transition-fast);
-  white-space: normal;
+  white-space: nowrap;
   border-bottom: 2px solid #0000;
-  flex: 1;
+  flex: 1 0 auto;
   justify-content: center;
   align-items: center;
   gap: 6px;
   line-height: 1.2;
   display: inline-flex;
-  overflow: hidden;
 }
 
 .fe-tool-tab .resume-icon {
@@ -189,6 +209,11 @@
 .fe-tool-tab.active {
   color: var(--color-secondary);
   border-bottom-color: var(--color-secondary);
+}
+
+.fe-tool-tab:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -4px;
 }
 
 .fe-tool-content {
@@ -1003,31 +1028,117 @@
 }
 
 .fe-actions {
-  box-sizing: border-box;
-  width: 200px;
-  min-width: 144px;
-  padding: var(--space-6) var(--space-4);
+  width: clamp(20rem,20cqi,23rem);
+  min-width: 20rem;
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
-  align-items: center;
-  gap: var(--space-6);
-  flex-direction: column;
-  flex: 0 200px;
+  flex: 0 0 clamp(20rem,20cqi,23rem);
   height: 100%;
-  max-height: none;
-  display: flex;
-  overflow-y: auto;
-  container-type: inline-size;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.fe-score-card {
+.fe-review-actions-toggle {
+  display: none;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.fe-review-drawer {
+  width: min(24rem,calc(100vw - 16px));
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100%;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-2xl);
+  overflow: hidden;
+}
+
+.fe-review-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.fe-review-drawer::backdrop {
+  background: #0f1629a6;
+  backdrop-filter: blur(4px);
+}
+
+.fe-review-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.fe-review-drawer-header h2 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: 1.4;
+}
+
+.fe-review-drawer-header .btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.fe-action-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-5) var(--space-4);
+  gap: var(--space-5);
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1;
+  display: flex;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: var(--space-4);
+  container: action-panel / inline-size;
+}
+
+.fe-action-panel>* {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.fe-profile-completion {
+  min-width: 0;
+  width: 100%;
+  position: relative;
+  container: profile-completion / inline-size;
+}
+
+.fe-profile-layout {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated,var(--color-surface));
+  display: grid;
+  gap: var(--space-3);
   text-align: center;
 }
 
 .fe-score-circle {
   width: 80px;
   height: 80px;
-  margin: 0 auto var(--space-2);
+  margin: 0 auto;
+  flex: 0 0 auto;
   position: relative;
 }
 
@@ -1047,53 +1158,153 @@
 }
 
 .fe-score-label {
-  font-size: var(--font-size-xs);
+  margin: 0;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.fe-profile-heading {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fe-profile-percentage {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  display: none;
+}
+
+.fe-profile-progress {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  display: none;
+  overflow: hidden;
+}
+
+.fe-profile-progress span {
+  height: 100%;
+  border-radius: inherit;
+  display: block;
 }
 
 .fe-page-count {
   width: 100%;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   justify-content: center;
   align-items: center;
   gap: 6px;
   display: flex;
+  line-height: 1.4;
+}
+
+.fe-page-count .resume-icon {
+  flex: 0 0 auto;
+}
+
+.fe-profile-completion.is-compact .fe-profile-layout {
+  text-align: left;
+}
+
+.fe-profile-completion.is-compact .fe-score-circle {
+  display: none;
+}
+
+.fe-profile-completion.is-compact .fe-profile-heading {
+  justify-content: space-between;
+}
+
+.fe-profile-completion.is-compact .fe-profile-percentage,
+.fe-profile-completion.is-compact .fe-profile-progress {
+  display: block;
+}
+
+.fe-profile-completion.is-compact .fe-page-count {
+  justify-content: flex-start;
+}
+
+@container profile-completion (width<17rem) {
+  .fe-profile-layout { text-align: left; }
+  .fe-score-circle { display: none; }
+  .fe-profile-heading { justify-content: space-between; }
+  .fe-profile-percentage,.fe-profile-progress { display: block; }
+  .fe-page-count { justify-content: flex-start; }
 }
 
 .fe-resume-review {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   width: 100%;
-  padding: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
   background: var(--color-surface-elevated,var(--color-surface));
+  container: resume-review / inline-size;
 }
 
 .fe-resume-review-heading {
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
   display: flex;
 }
 
 .fe-resume-review-heading h2 {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   color: var(--color-text-primary);
   margin: 0;
+  line-height: 1.4;
 }
 
-.fe-resume-review-heading span,.fe-resume-review-more {
-  color: var(--color-text-tertiary);
+.fe-review-status {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.fe-review-score {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  margin: 0;
-  font-size: 10px;
+}
+
+.fe-review-count {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@container resume-review (width>=24rem) {
+  .fe-resume-review-heading {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+  }
 }
 
 .fe-resume-review ul {
-  gap: var(--space-2);
+  gap: var(--space-4);
   flex-direction: column;
   margin: 0;
   padding: 0;
@@ -1102,44 +1313,70 @@
 }
 
 .fe-resume-review li {
-  border-left: 2px solid var(--color-warning);
-  padding-left: var(--space-2);
+  min-width: 0;
+  border-left: 2px solid var(--fe-completion-warning);
+  padding-left: var(--space-3);
+  overflow-wrap: anywhere;
 }
 
 .fe-resume-review li.is-required {
-  border-left-color: var(--color-error);
+  border-left-color: var(--fe-completion-error);
 }
 
 .fe-resume-review li.is-tip {
   border-left-color: var(--color-primary);
 }
 
-.fe-resume-review li strong,.fe-resume-review li span,.fe-resume-review>p:not(.fe-resume-review-more) {
+.fe-resume-review li strong,.fe-resume-review li span,.fe-resume-review>p {
   display: block;
 }
 
 .fe-resume-review li strong {
   color: var(--color-text-primary);
-  font-size: var(--font-size-xs);
-  line-height: 1.25;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
-.fe-resume-review li span,.fe-resume-review>p:not(.fe-resume-review-more) {
+.fe-resume-review li span,.fe-resume-review>p {
   color: var(--color-text-secondary);
   margin: 2px 0 0;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .fe-resume-review-more {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) 0;
   margin-top: var(--space-2);
+  text-align: left;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fe-resume-review-more:hover {
+  color: var(--color-text-secondary);
 }
 
 .fe-open-check {
   width: 100%;
+  min-height: 44px;
   margin-top: var(--space-3);
   justify-content: center;
-  font-size: 10px;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+}
+
+.fe-open-check:focus-visible,.fe-resume-review-more:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 .fe-download-warning {
@@ -1165,7 +1402,9 @@
   gap: var(--space-2);
   flex-direction: column;
   width: 100%;
+  min-width: 0;
   display: flex;
+  container: finalize-actions / inline-size;
 }
 
 .fe-action-button {
@@ -1194,21 +1433,17 @@
 
 .fe-utility-actions .fe-action-button {
   min-width: 0;
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3);
 }
 
-@container (width<=148px) {
+@container finalize-actions (width<18.5rem) {
   .fe-utility-actions {
     grid-template-columns: minmax(0,1fr);
-  }
-
-  .fe-utility-actions .fe-action-button {
-    padding-inline: var(--space-3);
   }
 }
 
 .fe-finish-button {
-  min-height: 38px;
+  min-height: 44px;
   margin-top: var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1624,77 +1859,27 @@
   min-height: 52px;
 }
 
-@media (width<=1180px) {
-  .fe-mobile-summary {
-    gap: var(--space-4);
-    width: 100%;
-    padding: var(--space-5);
-    border-top: 1px solid var(--color-border);
-    background: var(--color-surface);
-    grid-template-columns: minmax(0,1fr) minmax(240px,.8fr) minmax(190px,.55fr);
-    display: grid;
-    flex: 0 0 auto;
-  }
-
-  .fe-mobile-completion {
-    min-width: 0;
-    padding: var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface-elevated,var(--color-surface));
-  }
-
-  .fe-mobile-completion>div:first-child {
-    justify-content: space-between;
-    align-items: baseline;
-    gap: var(--space-3);
-    display: flex;
-  }
-
-  .fe-mobile-completion h2 {
-    color: var(--color-text-primary);
-    font-size: var(--font-size-base);
-    margin: 0;
-  }
-
-  .fe-mobile-completion>div:first-child span,.fe-mobile-page-count {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .fe-mobile-page-count {
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-    display: inline-flex;
-  }
-
-  .fe-mobile-progress {
-    height: 8px;
-    margin-top: var(--space-3);
-    border-radius: var(--radius-full);
-    background: var(--color-border);
-    overflow: hidden;
-  }
-
-  .fe-mobile-progress span {
-    border-radius: inherit;
-    height: 100%;
-    display: block;
-  }
-
+@container finalize-layout (width<=80rem) {
   .fe-actions {
     display: none;
   }
 
-  .fe-tools {
-    scrollbar-gutter: auto;
-    width: 270px;
+  .fe-review-actions-toggle {
+    display: inline-flex;
   }
 
   .fe-main {
     padding: var(--space-4);
+  }
+}
+
+@supports not (container-type: inline-size) {
+  .fe-tools { width: 18rem; flex: 0 0 18rem; }
+  .fe-actions { width: 20rem; flex: 0 0 20rem; }
+
+  @media (width<=1280px) {
+    .fe-actions { display: none; }
+    .fe-review-actions-toggle { display: inline-flex; }
   }
 }
 
@@ -1783,6 +1968,10 @@
     display: none;
   }
 
+  .fe-actions,.fe-review-actions-toggle {
+    display: none;
+  }
+
   .fe-mobile-quick-actions {
     padding: 0 max(var(--space-4), env(safe-area-inset-right)) var(--space-4) max(var(--space-4), env(safe-area-inset-left));
     background: var(--color-surface);
@@ -1805,6 +1994,12 @@
   }
 
   .fe-mobile-summary {
+    display: grid;
+    width: 100%;
+    gap: var(--space-4);
+    flex: 0 0 auto;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
     padding: var(--space-5) max(var(--space-4), env(safe-area-inset-right)) calc(var(--space-8) + env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
     grid-template-columns: minmax(0,1fr);
   }
@@ -1850,14 +2045,6 @@
 
   .fe-mobile-summary .fe-resume-review {
     padding: var(--space-4);
-  }
-
-  .fe-mobile-summary .fe-resume-review-heading span,.fe-mobile-summary .fe-resume-review-more,.fe-mobile-summary .fe-resume-review li span,.fe-mobile-summary .fe-resume-review>p:not(.fe-resume-review-more) {
-    font-size: var(--font-size-xs);
-  }
-
-  .fe-mobile-summary .fe-resume-review li strong {
-    font-size: var(--font-size-sm);
   }
 
   .fe-topbar {
@@ -1915,20 +2102,6 @@
     font-size: var(--font-size-xs);
   }
 
-  .fe-utility-actions {
-    grid-template-columns: minmax(0,1fr);
-  }
-}
-
-@media (width<=375px) {
-  .fe-tool-tab {
-    gap: 0;
-    font-size: var(--font-size-xs);
-  }
-
-  .fe-tool-tab .resume-icon {
-    display: none;
-  }
 }
 
 @media (width<=360px) {

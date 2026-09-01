@@ -1,40 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import mammoth from 'mammoth';
 import JSZip from 'jszip';
 import { TEMPLATES } from '../src/data/templates.js';
-
-/**
- * pdfGenerator uses extensionless imports because Vite resolves them in the
- * browser build. Node's native ESM loader intentionally does not. Load the
- * production source unchanged apart from resolving its three import specifiers
- * to absolute URLs so these tests exercise the actual exported functions.
- */
-async function loadPdfGenerator() {
-  const sourceUrl = new URL('../src/utils/pdfGenerator.js', import.meta.url);
-  const resumeSectionsUrl = new URL('../src/utils/resumeSections.js', import.meta.url).href;
-  const resumeDatesUrl = new URL('../src/utils/resumeDates.js', import.meta.url).href;
-  const jsPdfUrl = import.meta.resolve('jspdf');
-  const docxUrl = import.meta.resolve('docx');
-  const source = await readFile(fileURLToPath(sourceUrl), 'utf8');
-  const resolvableSource = source
-    .replace("from 'jspdf'", `from '${jsPdfUrl}'`)
-    .replace("from 'docx'", `from '${docxUrl}'`)
-    .replace("from './resumeSections'", `from '${resumeSectionsUrl}'`)
-    .replace("from './resumeDates'", `from '${resumeDatesUrl}'`);
-  const moduleUrl = `data:text/javascript;base64,${Buffer.from(resolvableSource).toString('base64')}`;
-  return import(moduleUrl);
-}
-
-const {
+import { getTemplatePresentation } from '../src/utils/resumePresentation.js';
+import {
   RESUME_EXPORT_FORMATS,
   buildEmailDraft,
   prepareDOCXExport,
   preparePDFExport,
   printResume,
-} = await loadPdfGenerator();
+} from '../src/utils/pdfGenerator.js';
 
 function resumeState(templateId = 'classic') {
   return {
@@ -259,7 +236,7 @@ test('prepares a DOCX artifact with the OOXML MIME type and ZIP signature', asyn
   });
 
   assert.equal(artifact.format, 'docx');
-  assert.equal(artifact.filename, 'Deepak Resume.docx');
+  assert.equal(artifact.filename, 'Deepak_Resume.docx');
   assert.equal(artifact.mimeType, RESUME_EXPORT_FORMATS.docx.mimeType);
   assert.equal(artifact.blob.type, RESUME_EXPORT_FORMATS.docx.mimeType);
   assert.ok(artifact.size > 100);
@@ -269,7 +246,7 @@ test('prepares a DOCX artifact with the OOXML MIME type and ZIP signature', asyn
   );
 });
 
-test('every template emits fixed-width, mobile-safe Word-native OOXML', async () => {
+test('every template keeps essential text in fixed-width, flowing Word-native OOXML', async () => {
   const forbiddenPositioning = /<(?:wp:anchor|w:framePr|w:tblpPr|v:textbox|wps:wsp)\b/i;
   const attribute = (tag, name) => new RegExp(`\\b${name}="([^"]+)"`).exec(tag)?.[1];
 
@@ -282,7 +259,14 @@ test('every template emits fixed-width, mobile-safe Word-native OOXML', async ()
     const documentXml = await zip.file('word/document.xml').async('string');
     const numberingXml = await zip.file('word/numbering.xml').async('string');
 
-    assert.doesNotMatch(documentXml, forbiddenPositioning, `${template.id} must not contain floating or positioned primary content`);
+    const drawings = [...documentXml.matchAll(/<w:drawing\b[\s\S]*?<\/w:drawing>/g)];
+    assert.equal(drawings.length, template.id === 'timeline' ? 4 : 0);
+    for (const [drawing] of drawings) {
+      assert.match(drawing, /descr="Decorative timeline circle"/);
+      const text = [...drawing.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(match => match[1]).join('');
+      assert.match(text, /^[●○]$/u, 'only nonessential timeline markers may use native shapes');
+    }
+    assert.doesNotMatch(documentXml.replace(/<w:drawing\b[\s\S]*?<\/w:drawing>/g, ''), forbiddenPositioning, `${template.id} must not contain floating or positioned primary content`);
     assert.doesNotMatch(documentXml, /<w:tblW\b[^>]*w:type="pct"/i, `${template.id} must not use percentage table widths`);
     assert.doesNotMatch(documentXml, /<w:tcW\b[^>]*w:type="pct"/i, `${template.id} must not use percentage cell widths`);
     assert.doesNotMatch(documentXml, /<w:t[^>]*>\s*[•★☆]\s*<\/w:t>/u, `${template.id} must use native bullets and portable rating text`);
@@ -291,7 +275,9 @@ test('every template emits fixed-width, mobile-safe Word-native OOXML', async ()
     const pageMarginTag = documentXml.match(/<w:pgMar\b[^>]*\/?\s*>/i)?.[0] || '';
     assert.equal(attribute(pageSizeTag, 'w:w'), '11906', `${template.id} must use A4 width`);
     assert.equal(attribute(pageSizeTag, 'w:h'), '16838', `${template.id} must use A4 height`);
-    for (const edge of ['top', 'right', 'bottom', 'left']) assert.equal(attribute(pageMarginTag, `w:${edge}`), '720', `${template.id} must use stable ${edge} margin`);
+    for (const edge of ['top', 'right', 'left']) assert.equal(attribute(pageMarginTag, `w:${edge}`), '0', `${template.id} must not add generic margins outside shared template insets`);
+    const presentation = getTemplatePresentation(structuralResumeState(template.id));
+    assert.equal(Number(attribute(pageMarginTag, 'w:bottom')), Math.round((presentation.capabilities.page.bodyBottomPx ?? presentation.pageMarginPx) * 15), `${template.id} must retain the shared bottom inset for natural pagination`);
 
     const tableDefinitions = [...documentXml.matchAll(/<w:tblPr>([\s\S]*?)<\/w:tblPr><w:tblGrid>([\s\S]*?)<\/w:tblGrid>/g)];
     assert.ok(tableDefinitions.length > 0, `${template.id} should contain at least one fixed Word table`);
@@ -310,10 +296,43 @@ test('every template emits fixed-width, mobile-safe Word-native OOXML', async ()
     }
 
     assert.match(documentXml, /<w:keepNext\b/i, `${template.id} headings must stay with their first content block`);
-    assert.match(documentXml, /<w:cantSplit\b/i, `${template.id} job header rows must not split`);
+    // Small, independently bounded nested cards may stay together. The root
+    // header/body rows must never inherit those descendant row locks.
+    let tableDepth = 0;
+    let rootRowCount = 0;
+    let rowPropertiesStart;
+    const rootRowProperties = [];
+    for (const match of documentXml.matchAll(/<(\/?)w:(tbl|tr|trPr)\b[^>]*>/g)) {
+      if (match[2] === 'tbl') tableDepth += match[1] ? -1 : 1;
+      else if (match[2] === 'tr') {
+        if (tableDepth === 1 && !match[1]) rootRowCount += 1;
+      }
+      else if (tableDepth === 1) {
+        if (!match[1] && match[0].endsWith('/>')) rootRowProperties.push(match[0]);
+        else if (!match[1]) rowPropertiesStart = match.index;
+        else if (rowPropertiesStart !== undefined) {
+          rootRowProperties.push(documentXml.slice(rowPropertiesStart, match.index + match[0].length));
+          rowPropertiesStart = undefined;
+        }
+      }
+    }
+    // An omitted trPr is the normal breakable default, not a missing row.
+    assert.ok(rootRowCount > 0, `${template.id} root table rows must be inspected`);
+    for (const properties of rootRowProperties) {
+      const lock = properties.match(/<w:cantSplit\b[^>]*>/)?.[0];
+      assert.ok(!lock || ['false', '0', 'off'].includes(attribute(lock, 'w:val')), `${template.id} root content rows must continue across pages`);
+    }
+    // Coral's offset masthead has one 14px, empty decorative cutout row. Its
+    // merged content row intentionally remains auto-growing; every other
+    // template must keep all rows free of exact-height locks.
+    if (template.id === 'coral') {
+      assert.match(documentXml, /<w:trHeight\b[^>]*w:hRule="exact"/i, 'coral keeps only its decorative masthead cutout exact');
+    } else {
+      assert.doesNotMatch(documentXml, /<w:trHeight\b[^>]*w:hRule="exact"/i, `${template.id} must not lock long content into a fixed row height`);
+    }
     assert.match(numberingXml, /<w:numFmt\b[^>]*w:val="bullet"/i, `${template.id} must define native Word bullets`);
-    assert.match(documentXml, /Zoë/);
-    assert.match(documentXml, /Łukasz/);
+    assert.match(documentXml, /Zoë/iu);
+    assert.match(documentXml, /Łukasz/iu);
     assert.match(documentXml, /café/);
     assert.match(documentXml, /Português/);
     assert.doesNotMatch(documentXml, /â€™|â€œ|â€|ï¿½|�/, `${template.id} must not introduce mojibake`);

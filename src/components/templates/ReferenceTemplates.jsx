@@ -5,18 +5,8 @@ import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
 import { getResumeLayout, isCustomResumeSection } from '../../utils/resumeSections';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import './TemplateStyles.css';
-
-const SECTION_LABELS = {
-  summary: 'Profile',
-  workHistory: 'Professional Experience',
-  education: 'Education',
-  skills: 'Skills',
-  websites: 'Websites & Profiles',
-  personalDetails: 'Personal Details',
-  certifications: 'Certifications',
-  languages: 'Languages',
-};
 
 function fullName(contact = {}) {
   return [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Your Name';
@@ -35,7 +25,7 @@ function TemplateSection({ state, section, themeColor, spacing, variant, sidebar
     workHistory = [], education = [], skills = {}, summary = {}, personalDetails = {},
     websites = [], certifications = {}, languages = [],
   } = state;
-  const label = SECTION_LABELS[section];
+  const label = getTemplateSectionTitle(state, section);
   const classes = `tmpl-section ${variant}-section${sidebar ? ` ${variant}-sidebar-section` : ''}`;
   const title = <h2 className="tmpl-heading">{label}</h2>;
 

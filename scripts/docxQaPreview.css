@@ -1,0 +1,12 @@
+body { margin: 0; background: #e5e7eb; }
+.docx-fixture-viewer { padding: 76px 28px 40px; }
+.docx-fixture-toolbar {
+  position: fixed; inset: 0 0 auto; z-index: 100; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 10px; padding: 12px 18px; background: #fff;
+  border-bottom: 1px solid #cbd5e1; color: #172033; font: 13px Arial, sans-serif;
+}
+.docx-fixture-toolbar select, .docx-fixture-toolbar input { padding: 5px; font: inherit; }
+.docx-fixture-toolbar input { width: 66px; }
+.docx-fixture-toolbar span { color: #64748b; font-size: 11px; }
+.docx-fixture-viewer .preview-container { position: relative; top: 0; }
+.docx-fixture-viewer .preview-page { animation: none; border-radius: 0; }

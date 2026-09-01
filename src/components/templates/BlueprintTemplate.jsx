@@ -2,20 +2,10 @@ import { sanitizeHTML } from '../../utils/sanitize';
 import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import { getResumeLayout, isCustomResumeSection } from '../../utils/resumeSections';
 import { getTemplateById } from '../../data/templates';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import HeaderLinks from './HeaderLinks';
 import SkillRatings from './SkillRatings';
 import './TemplateStyles.css';
-
-const DEFAULT_LABELS = {
-  summary: 'Profile',
-  workHistory: 'Experience',
-  education: 'Education',
-  skills: 'Capabilities',
-  websites: 'Links',
-  personalDetails: 'Details',
-  certifications: 'Credentials',
-  languages: 'Languages',
-};
 
 function nameFor(contact = {}) {
   return [contact.firstName, contact.surname].filter(Boolean).join(' ') || 'Your Name';
@@ -37,10 +27,7 @@ function ResumeSection({ state, sectionId, index, spacing, inSidebar = false, bl
   const customSection = isCustomResumeSection(state, sectionId)
     ? extraSections.custom?.find(section => section.id === sectionId)
     : null;
-  const title = state.design?.sectionTitles?.[sectionId]?.trim()
-    || customSection?.title
-    || DEFAULT_LABELS[sectionId]
-    || 'Details';
+  const title = getTemplateSectionTitle(state, sectionId);
   const className = [
     'tmpl-section',
     'blueprint-section',
@@ -169,7 +156,7 @@ function SectionList({ state, ids, spacing, inSidebar, blueprint, offset = 0 }) 
 
 export default function BlueprintTemplate({ state, fontSize, fontFamily, spacing, layout }) {
   const template = getTemplateById(state.meta?.templateId);
-  const blueprint = template.blueprint || {};
+  const blueprint = template.presentation.blueprint;
   const resolvedLayout = layout || getResumeLayout(state);
   const classNames = [
     'template-blueprint',

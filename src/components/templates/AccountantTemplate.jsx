@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
@@ -29,7 +30,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!summary.content) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="summary">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>About Me</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
           </section>
         );
@@ -37,7 +38,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!workHistory.length) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="workHistory">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Work Experience</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             {workHistory.map(job => (
               <div key={job.id} className="tmpl-item accountant-entry">
                 <div className="accountant-entry-meta">
@@ -55,7 +56,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!education.length) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="education">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Education</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             {education.map(edu => (
               <div key={edu.id} className="tmpl-item accountant-entry">
                 <div className="accountant-entry-meta">
@@ -72,7 +73,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!skills.textContent && !skills.ratings?.some(skill => skill?.name?.trim())) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Skills</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
               ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content accountant-skill-copy" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
@@ -82,7 +83,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!websites.length) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="websites">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Websites & Profiles</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             <ul className="tmpl-list accountant-plain-list">{websites.map(site => <li key={site.id}>{site.url}</li>)}</ul>
           </section>
         );
@@ -90,7 +91,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!hasPersonalDetails(personalDetails)) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="personalDetails">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Personal Details</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="accountant-detail-list">
               {personalDetails.dob && <div><strong>Date of birth</strong>{personalDetails.dob}</div>}
               {personalDetails.nationality && <div><strong>Nationality</strong>{personalDetails.nationality}</div>}
@@ -103,7 +104,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!certifications.content) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="certifications">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Certifications</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
           </section>
         );
@@ -111,7 +112,7 @@ export default function AccountantTemplate({ state, themeColor, fontSize, fontFa
         if (!languages.length) return null;
         return (
           <section className={sectionClassName} data-resume-section-id={section} style={{ marginBottom: spacing }} key="languages">
-            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>Languages</h2>
+            <h2 className="tmpl-heading accountant-heading" style={headingStyle}>{getTemplateSectionTitle(state, section)}</h2>
             <ul className="tmpl-list accountant-plain-list">{languages.map(language => <li key={language.id}>{language.language}</li>)}</ul>
           </section>
         );

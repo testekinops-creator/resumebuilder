@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
@@ -19,7 +20,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!summary.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="summary">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Profile</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
           </div>
         );
@@ -27,7 +28,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!workHistory.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="workHistory">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Experience</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {workHistory.map(job => (
               <div key={job.id} className="tmpl-item">
                 <div className="tmpl-item-header" style={{ fontWeight: 'bold' }}>
@@ -48,7 +49,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!education.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="education">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Education</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {education.map(edu => (
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
@@ -66,7 +67,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!skills.textContent && !skills.ratings?.some(skill => skill?.name?.trim())) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Expertise</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
               ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
@@ -76,7 +77,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!websites.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="websites">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Links</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <ul className="tmpl-list">
               {websites.map(w => <li key={w.id}>{w.url}</li>)}
             </ul>
@@ -86,7 +87,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!personalDetails.dob && !personalDetails.nationality && !personalDetails.maritalStatus && !personalDetails.gender) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="personalDetails">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Personal</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {personalDetails.dob && <div><strong>DOB:</strong> {personalDetails.dob}</div>}
               {personalDetails.nationality && <div><strong>Nationality:</strong> {personalDetails.nationality}</div>}
@@ -99,7 +100,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!certifications.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="certifications">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Certifications</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
           </div>
         );
@@ -107,7 +108,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
         if (!languages.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="languages">
-            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>Languages</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, textTransform: 'none', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {languages.map(lang => <div key={lang.id}>{lang.language}</div>)}
             </div>
@@ -124,7 +125,7 @@ export default function ModernTemplate({ state, themeColor, fontSize, fontFamily
     <div className="template-modern" style={{ fontFamily, fontSize, color: '#334155' }}>
       <header className="modern-header" style={{ display: 'flex', justifyContent: 'space-between', borderTop: `6px solid ${themeColor}`, padding: 'var(--resume-page-padding, 32px) var(--resume-page-padding, 32px) 16px' }}>
         <div className="modern-header-left" style={{ flex: 1 }}>
-          <h1 style={{ margin: 0, fontSize: '2.5em', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.5px' }}>{fullName}</h1>
+          <h1 style={{ margin: 0, fontSize: 'var(--presentation-name-size)', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.5px' }}>{fullName}</h1>
           {workHistory.length > 0 && workHistory[0].jobTitle && (
             <div style={{ color: themeColor, fontSize: '1.2em', fontWeight: 500, marginTop: '4px' }}>
               {workHistory[0].jobTitle}

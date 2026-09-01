@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
@@ -19,7 +20,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!summary.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="summary">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Professional Summary</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
           </div>
         );
@@ -27,7 +28,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!workHistory.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="workHistory">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Work History</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             {workHistory.map(job => (
               <div key={job.id} className="tmpl-item">
                 <div className="tmpl-item-header">
@@ -48,7 +49,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!education.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="education">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Education</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             {education.map(edu => (
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
@@ -66,7 +67,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!skills.textContent && !skills.ratings?.some(skill => skill?.name?.trim())) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Skills</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
               ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
@@ -76,7 +77,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!websites.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="websites">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Websites & Profiles</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             <ul className="tmpl-list">
               {websites.map(w => <li key={w.id}>{w.url}</li>)}
             </ul>
@@ -86,7 +87,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!personalDetails.dob && !personalDetails.nationality && !personalDetails.maritalStatus && !personalDetails.gender) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="personalDetails">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Personal Details</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {personalDetails.dob && <div><strong>DOB:</strong> {personalDetails.dob}</div>}
               {personalDetails.nationality && <div><strong>Nationality:</strong> {personalDetails.nationality}</div>}
@@ -99,7 +100,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!certifications.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="certifications">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Certifications</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
           </div>
         );
@@ -107,7 +108,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
         if (!languages.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="languages">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>Languages</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}` }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {languages.map(lang => <div key={lang.id}>{lang.language}</div>)}
             </div>
@@ -123,7 +124,7 @@ export default function ClassicTemplate({ state, themeColor, fontSize, fontFamil
   return (
     <div className="template-classic" style={{ fontFamily, fontSize, color: '#333' }}>
       <header className="classic-header" style={{ backgroundColor: themeColor, color: '#fff', padding: '24px 32px', textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '2.2em', fontWeight: 600, letterSpacing: '1px' }}>{fullName}</h1>
+        <h1 style={{ margin: 0, fontSize: 'var(--presentation-name-size)', fontWeight: 600, letterSpacing: '1px' }}>{fullName}</h1>
         <div className="classic-contact" style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '12px', fontSize: '0.9em', opacity: 0.9 }}>
           {contact.email && <span>{contact.email}</span>}
           {contact.phone && <span>{contact.phone}</span>}

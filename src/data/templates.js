@@ -1,3 +1,5 @@
+import { defineTemplatePresentation } from './templatePresentation.js';
+
 const palette = (accent, heading = accent, sidebar = accent, divider = accent) => ({
   accent, heading, sidebar, divider,
 });
@@ -57,6 +59,7 @@ function defineTemplate({
       ...categories,
     ])]),
     atsFriendly,
+    presentation: defineTemplatePresentation({ id, baseTemplate, layout, blueprint }),
     blueprint: blueprint ? Object.freeze({ ...blueprint }) : null,
     designSignature: blueprint?.signature || `${baseTemplate}:${id}`,
     sectionDefaults: sectionDefaults ? Object.freeze({

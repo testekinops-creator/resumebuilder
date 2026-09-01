@@ -732,9 +732,9 @@ export function ResumeProvider({ children }) {
 }
 
 // oxlint-disable-next-line react/only-export-components
-export function useResume() {
+export function useResume({ optional = false } = {}) {
   const context = useContext(ResumeContext);
-  if (!context) {
+  if (!context && !optional) {
     throw new Error('useResume must be used within a ResumeProvider');
   }
   return context;

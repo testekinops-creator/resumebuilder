@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 graphify-out
+tmp/docx-fidelity/
 
 # Editor directories and files
 .vscode/*

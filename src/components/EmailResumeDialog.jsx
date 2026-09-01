@@ -5,6 +5,7 @@ import {
   emailResume,
   prepareResumeExport,
 } from '../utils/pdfGenerator';
+import { DOCX_PREPARING_LABEL, docxExportFailureFeedback, docxExportFailureText, logDocxExportFailure } from '../utils/docxExportFeedback';
 import ResumeIcon from './ResumeIcon';
 import './EmailResumeDialog.css';
 
@@ -155,7 +156,7 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
     operationRef.current = 'prepare';
     setBusy('prepare');
     setError('');
-    setStatus(`Preparing ${format.toUpperCase()}…`);
+    setStatus(format === 'docx' ? DOCX_PREPARING_LABEL : `Preparing ${format.toUpperCase()}…`);
     const prepareController = typeof AbortController === 'function' ? new AbortController() : null;
     prepareControllerRef.current = prepareController;
 
@@ -173,14 +174,18 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
     } catch (prepareError) {
       if (!mountedRef.current) return;
       if (prepareError?.cause?.name === 'AbortError' || prepareError?.name === 'AbortError') return;
-      const message = prepareError?.message || `We could not prepare the ${format.toUpperCase()} file. Please try again.`;
+      if (format === 'docx') logDocxExportFailure(prepareError, { templateId: state.meta?.templateId, resumeId: state.meta?.id });
+      const docxFeedback = format === 'docx' ? docxExportFailureFeedback(prepareError) : null;
+      const message = format === 'docx'
+        ? docxExportFailureText(prepareError)
+        : prepareError?.message || `We could not prepare the ${format.toUpperCase()} file. Please try again.`;
       setArtifact(null);
       setStatus('');
       setError(message);
       notifySafely(onNotify, {
         type: 'error',
-        title: 'Resume preparation failed',
-        message,
+        title: docxFeedback?.title || 'Resume preparation failed',
+        message: docxFeedback?.message || message,
       });
     } finally {
       if (prepareControllerRef.current === prepareController) prepareControllerRef.current = null;
@@ -244,13 +249,17 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
         message: `Attach ${artifact.filename} to your email before sending.`,
       });
     } catch (downloadError) {
-      const message = downloadError?.message || 'The resume could not be downloaded. Please try again.';
+      if (artifact.format === 'docx') logDocxExportFailure(downloadError, { templateId: state.meta?.templateId, resumeId: state.meta?.id, stage: 'download' });
+      const docxFeedback = artifact.format === 'docx' ? docxExportFailureFeedback(downloadError) : null;
+      const message = artifact.format === 'docx'
+        ? docxExportFailureText(downloadError)
+        : downloadError?.message || 'The resume could not be downloaded. Please try again.';
       setError(message);
       setStatus('');
       notifySafely(onNotify, {
         type: 'error',
-        title: 'Download failed',
-        message,
+        title: docxFeedback?.title || 'Download failed',
+        message: docxFeedback?.message || message,
       });
     } finally {
       operationRef.current = '';
@@ -360,7 +369,7 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
             disabled={Boolean(busy)}
           >
             <ResumeIcon name="download" size={18} />
-            {busy === 'prepare' ? `Preparing ${format.toUpperCase()}…` : 'Prepare resume'}
+            {busy === 'prepare' ? (format === 'docx' ? DOCX_PREPARING_LABEL : `Preparing ${format.toUpperCase()}…`) : 'Prepare resume'}
           </button>
         ) : (
           <div ref={preparedActionsRef} className="email-resume-dialog__prepared">

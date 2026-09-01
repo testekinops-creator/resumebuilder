@@ -23,6 +23,7 @@ import {
   saveQualityIgnore,
 } from '../../utils/resumeQuality';
 import { generateDOCX, generatePDF, printResume } from '../../utils/pdfGenerator';
+import { DOCX_PREPARING_LABEL, docxExportFailureFeedback, logDocxExportFailure } from '../../utils/docxExportFeedback';
 import { getNextTabId, getTabScrollLeft } from '../../utils/finalizeNavigation';
 import {
   dismissFinalizeWelcome,
@@ -152,6 +153,13 @@ export default function FinalEditor() {
     setNotification({ id: Date.now(), type, title, message });
   }, []);
 
+  // Undo/redo and imported-resume restoration replace the context snapshot.
+  // Keep the editable title and DOCX filename tied to that authoritative
+  // snapshot rather than retaining a title from a state that was undone.
+  useEffect(() => {
+    setResumeName(state.meta.name ?? 'My Resume');
+  }, [state.meta.name]);
+
   const selectPreviewSection = useCallback((sectionId) => {
     setSelectedSection(sectionId);
     setActiveTab('sections');
@@ -218,18 +226,23 @@ export default function FinalEditor() {
         await generatePDF({ state, resumeName });
       }
     } catch (error) {
-      console.error('Resume export failed', {
-        format: exportFormat,
-        template: state.meta?.templateId,
-        resumeId: state.meta?.id,
-        stage: error?.exportStage || 'unknown',
-        status: error?.status,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      showNotification({
-        title: `${exportFormat.toUpperCase()} download failed`,
-        message: `We couldn't generate your ${exportFormat.toUpperCase()}. Your resume is still saved. Please try again.`,
-      });
+      if (exportFormat === 'docx') {
+        logDocxExportFailure(error, { templateId: state.meta?.templateId, resumeId: state.meta?.id });
+        showNotification(docxExportFailureFeedback(error));
+      } else {
+        console.error('Resume export failed', {
+          format: exportFormat,
+          template: state.meta?.templateId,
+          resumeId: state.meta?.id,
+          stage: error?.exportStage || 'unknown',
+          status: error?.status,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        showNotification({
+          title: `${exportFormat.toUpperCase()} download failed`,
+          message: `We couldn't generate your ${exportFormat.toUpperCase()}. Your resume is still saved. Please try again.`,
+        });
+      }
     } finally {
       exportJobRef.current = '';
       setGenerating('');
@@ -736,8 +749,8 @@ export default function FinalEditor() {
               </button>
             </div>
             <div className="fe-mobile-actions-grid">
-              <button type="button" className="btn btn-outline-dark" onClick={() => { setShowMobileActions(false); handleDownload('docx'); }} disabled={Boolean(generating)}>
-                <ResumeIcon name="download" size={19} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
+              <button type="button" className="btn btn-outline-dark fe-docx-button" onClick={() => handleDownload('docx')} disabled={Boolean(generating)} aria-busy={generating === 'docx'}>
+                <ResumeIcon name="download" size={19} /><span>{generating === 'docx' ? DOCX_PREPARING_LABEL : 'DOCX'}</span>
               </button>
               <button type="button" className="btn btn-primary" onClick={() => { setShowMobileActions(false); handleDownload('pdf'); }} disabled={Boolean(generating)}>
                 <ResumeIcon name="download" size={19} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}
@@ -1121,8 +1134,8 @@ function FinalizeActionButtons({ generating, onDownload, onPrint, onEmail, onFin
           <ResumeIcon name="preview" size={18} />Preview resume
         </button>
       )}
-      <button className="btn btn-outline-dark fe-action-button fe-export-button fe-docx-button" onClick={() => onDownload('docx')} disabled={Boolean(generating)} aria-label="Download DOCX" title="Download DOCX">
-        <ResumeIcon name="download" size={18} />{generating === 'docx' ? 'Preparing...' : 'DOCX'}
+      <button className="btn btn-outline-dark fe-action-button fe-export-button fe-docx-button" onClick={() => onDownload('docx')} disabled={Boolean(generating)} aria-busy={generating === 'docx'} aria-label={generating === 'docx' ? DOCX_PREPARING_LABEL : 'Download DOCX'} title="Download DOCX">
+        <ResumeIcon name="download" size={18} /><span>{generating === 'docx' ? DOCX_PREPARING_LABEL : 'DOCX'}</span>
       </button>
       <button className="btn btn-primary fe-action-button fe-export-button fe-pdf-button" onClick={() => onDownload('pdf')} disabled={Boolean(generating)} aria-label="Download PDF" title="Download a vector PDF of your resume">
         <ResumeIcon name="download" size={18} />{generating === 'pdf' ? 'Preparing...' : 'PDF'}

@@ -85,8 +85,8 @@
 .blueprint-contact > a { max-width: 100%; overflow-wrap: anywhere; color: inherit; }
 .blueprint-monogram {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: var(--presentation-monogram-size, 46px);
+  height: var(--presentation-monogram-size, 46px);
   flex: 0 0 auto;
   place-items: center;
   border: 2px solid var(--blueprint-divider);
@@ -455,6 +455,56 @@
 .tmpl-heading + * {
   page-break-before: avoid;
   break-before: avoid;
+}
+
+/* Custom sections use the selected template's customHeading descriptor. The
+   descriptor normally mirrors the native section heading, while still leaving
+   room for a template to opt into a narrower custom-section treatment later. */
+.tmpl-custom-section {
+  border: var(--presentation-custom-heading-section-outline-width, 0px) var(--presentation-custom-heading-section-outline-style, solid) var(--presentation-custom-heading-section-outline-color, transparent);
+  border-top: var(--presentation-custom-heading-section-top-width, 0px) var(--presentation-custom-heading-section-top-style, solid) var(--presentation-custom-heading-section-top-color, transparent);
+  padding: var(--presentation-custom-heading-section-padding-top, 0px) var(--presentation-custom-heading-section-padding-right, 0px) var(--presentation-custom-heading-section-padding-bottom, 0px) var(--presentation-custom-heading-section-padding-left, 0px);
+}
+
+.tmpl-custom-heading {
+  display: var(--presentation-custom-heading-display, block);
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-bottom: var(--presentation-custom-heading-gap, var(--resume-heading-gap, 12px));
+  padding: var(--presentation-custom-heading-padding, 0);
+  color: var(--presentation-custom-heading-color, inherit);
+  background: var(--presentation-custom-heading-background, transparent);
+  font-family: var(--presentation-custom-heading-font-family, inherit);
+  font-size: var(--presentation-custom-heading-font-size, 1.4em);
+  font-weight: var(--presentation-custom-heading-font-weight, 600);
+  line-height: var(--presentation-custom-heading-line-height, 1.25);
+  letter-spacing: var(--presentation-custom-heading-letter-spacing, var(--resume-heading-letter-spacing, 0.5px));
+  text-align: var(--presentation-custom-heading-text-align, left);
+  text-transform: var(--presentation-custom-heading-text-transform, uppercase);
+  justify-content: var(--presentation-custom-heading-justify-content, flex-start);
+  border-top: var(--presentation-custom-heading-border-top-width, 0px) var(--presentation-custom-heading-border-top-style, solid) var(--presentation-custom-heading-border-top-color, transparent);
+  border-bottom: var(--presentation-custom-heading-border-bottom-width, 0px) var(--presentation-custom-heading-border-bottom-style, solid) var(--presentation-custom-heading-border-bottom-color, transparent);
+  border-left: var(--presentation-custom-heading-border-left-width, 0px) var(--presentation-custom-heading-border-left-style, solid) var(--presentation-custom-heading-border-left-color, transparent);
+  border-radius: var(--presentation-custom-heading-border-radius, 0px);
+  outline: var(--presentation-custom-heading-outline-width, 0px) var(--presentation-custom-heading-outline-style, solid) var(--presentation-custom-heading-outline-color, transparent);
+}
+
+.creative-sidebar .tmpl-custom-heading,
+.timeline-sidebar .tmpl-custom-heading {
+  --presentation-custom-heading-color: var(--presentation-custom-heading-sidebar-color);
+  --presentation-custom-heading-font-size: var(--presentation-custom-heading-sidebar-font-size);
+  --presentation-custom-heading-letter-spacing: var(--presentation-custom-heading-sidebar-letter-spacing);
+  --presentation-custom-heading-border-bottom-color: var(--presentation-custom-heading-sidebar-border-bottom-color);
+}
+
+.tmpl-custom-section-ats-serif:first-child {
+  --presentation-custom-heading-section-top-width: 0px;
+  --presentation-custom-heading-section-padding-top: 0px;
+}
+
+.tmpl-custom-section.pdf-section-continuation {
+  border-width: 0;
+  padding: 0;
 }
 
 .tmpl-item {
@@ -963,6 +1013,51 @@
 .ats-serif-entry .tmpl-item-header { font-size: 1.05em; }
 .ats-serif-entry .tmpl-item-header > :last-child { color: #252525; font-style: italic; font-weight: 500; }
 .ats-serif-entry .tmpl-item-sub { margin-bottom: 8px; }
+
+/* Shared capability geometry. These values resolve to the established visual
+   dimensions, and are also consumed directly by editable DOCX rendering. */
+.template-blueprint .blueprint-header {
+  padding-top: var(--presentation-header-top);
+  padding-bottom: var(--presentation-header-bottom);
+}
+
+.template-blueprint .blueprint-identity h1 {
+  font-size: var(--presentation-name-size);
+  font-weight: var(--presentation-name-weight);
+  line-height: var(--presentation-name-line-height);
+  letter-spacing: var(--presentation-name-spacing);
+}
+
+.template-blueprint .blueprint-columns,
+.template-developer .developer-columns {
+  grid-template-columns: minmax(0, var(--presentation-column-left)) minmax(0, var(--presentation-column-right));
+  column-gap: var(--presentation-column-gap);
+}
+
+.template-accountant .accountant-columns {
+  grid-template-columns: minmax(0, var(--presentation-column-left)) minmax(190px, var(--presentation-column-right));
+}
+
+.template-creative .creative-sidebar { width: var(--presentation-column-left-width); }
+.template-creative .creative-main { width: var(--presentation-column-right-width); }
+
+.template-blueprint .blueprint-body {
+  padding-top: var(--presentation-body-top);
+  padding-bottom: var(--presentation-body-bottom);
+  padding-left: var(--presentation-body-left-inset);
+  padding-right: var(--presentation-body-inset);
+}
+
+.template-accountant .accountant-header h1,
+.template-developer .developer-header h1,
+.template-timeline .timeline-header h1,
+.template-editorial .editorial-header h1,
+.template-ats-serif .ats-serif-header h1 {
+  font-size: var(--presentation-name-size);
+  font-weight: var(--presentation-name-weight);
+  line-height: var(--presentation-name-line-height);
+  letter-spacing: var(--presentation-name-spacing);
+}
 
 @media print {
   .classic-header,

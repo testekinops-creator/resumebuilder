@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '../../utils/sanitize';
+import { getTemplateSectionTitle } from '../../utils/resumePresentation';
 import { formatResumeDateRange, formatResumeMonth } from '../../utils/resumeDates';
 import CustomSections from './CustomSections';
 import HeaderLinks from './HeaderLinks';
@@ -19,7 +20,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!summary.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="summary">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Executive Summary</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(summary.content) }} />
           </div>
         );
@@ -27,7 +28,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!workHistory.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="workHistory">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Professional Experience</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {workHistory.map(job => (
               <div key={job.id} className="tmpl-item" style={{ marginBottom: '24px' }}>
                 <div className="tmpl-item-header" style={{ fontSize: '1.2em' }}>
@@ -48,7 +49,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!education.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="education">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Education</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {education.map(edu => (
               <div key={edu.id} className="tmpl-item">
                 <div className="tmpl-item-header">
@@ -66,7 +67,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!skills.textContent && !skills.ratings?.some(skill => skill?.name?.trim())) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="skills">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Core Competencies</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             {skills.ratings?.some(skill => skill?.name?.trim())
               ? <SkillRatings ratings={skills.ratings} showRatings={skills.showRatings} />
               : skills.textContent && <div className="tmpl-content tmpl-skills-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(skills.textContent) }} />}
@@ -76,7 +77,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!websites.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="websites">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Websites & Portfolios</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <ul className="tmpl-list">
               {websites.map(w => <li key={w.id}>{w.url}</li>)}
             </ul>
@@ -86,7 +87,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!personalDetails.dob && !personalDetails.nationality && !personalDetails.maritalStatus && !personalDetails.gender) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="personalDetails">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Personal Information</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {personalDetails.dob && <div><strong>DOB:</strong> {personalDetails.dob}</div>}
               {personalDetails.nationality && <div><strong>Nationality:</strong> {personalDetails.nationality}</div>}
@@ -99,7 +100,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!certifications.content) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="certifications">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Certifications</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-content" dangerouslySetInnerHTML={{ __html: sanitizeHTML(certifications.content) }} />
           </div>
         );
@@ -107,7 +108,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
         if (!languages.length) return null;
         return (
           <div className="tmpl-section" data-resume-section-id={section} style={{ marginBottom: spacing }} key="languages">
-            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>Languages</h2>
+            <h2 className="tmpl-heading" style={{ color: themeColor, borderBottom: `2px solid ${themeColor}`, paddingBottom: '4px' }}>{getTemplateSectionTitle(state, section)}</h2>
             <div className="tmpl-details-grid">
               {languages.map(lang => <div key={lang.id}>{lang.language}</div>)}
             </div>
@@ -123,7 +124,7 @@ export default function ExecutiveTemplate({ state, themeColor, fontSize, fontFam
   return (
     <div className="template-executive" style={{ fontFamily: fontFamily || 'Georgia, serif', fontSize, color: '#222', border: `8px solid ${themeColor}`, minHeight: '100%', boxSizing: 'border-box' }}>
       <header className="executive-header" style={{ padding: 'var(--resume-page-padding, 32px) calc(var(--resume-page-padding, 32px) * 1.25)', borderBottom: `2px solid ${themeColor}`, backgroundColor: 'rgba(0,0,0,0.02)' }}>
-        <h1 style={{ margin: 0, fontSize: '2.8em', fontWeight: 400, color: '#111' }}>{fullName}</h1>
+        <h1 style={{ margin: 0, fontSize: 'var(--presentation-name-size)', fontWeight: 400, color: '#111' }}>{fullName}</h1>
         <div className="executive-contact" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '16px', fontSize: '0.9em', color: '#555', fontFamily: 'Arial, sans-serif' }}>
           {contact.email && <span>{contact.email}</span>}
           <HeaderLinks contact={contact} websites={websites} />

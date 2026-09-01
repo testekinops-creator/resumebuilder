@@ -10,8 +10,8 @@ import AccountantTemplate from './templates/AccountantTemplate';
 import DeveloperTemplate from './templates/DeveloperTemplate';
 import BlueprintTemplate from './templates/BlueprintTemplate';
 import { AtsSerifTemplate, EditorialTemplate, TimelineTemplate } from './templates/ReferenceTemplates';
-import { getTemplateById, getTemplateTheme } from '../data/templates';
-import { applyPreviewSectionTitles, getPreviewSectionId, getResumeLayout, getSectionDisplayName } from '../utils/resumeSections';
+import { getTemplatePresentation, getPresentationCSSVariables } from '../utils/resumePresentation';
+import { applyPreviewSectionTitles, getPreviewSectionId, getSectionDisplayName } from '../utils/resumeSections';
 import './ResumePreview.css';
 
 const TEMPLATE_MAP = {
@@ -52,35 +52,29 @@ export default function ResumePreview({
   onPageCountChange,
   viewerScale,
 }) {
-  const { state: contextState } = useResume();
-  const state = data || contextState;
+  const context = useResume({ optional: Boolean(data) });
+  const state = data || context.state;
   const previewPageRef = useRef(null);
   const lastFocusRequestRef = useRef(0);
   const [pageHeight, setPageHeight] = useState(A4_PAGE_HEIGHT_PX);
   const { design = {} } = state;
   const templateId = templateIdOverride || state.meta?.templateId || 'classic';
-  const template = getTemplateById(templateId);
-  const selectedTheme = getTemplateTheme(template, design.themePreset, {
-    accent: accentColor || design.colorScheme,
-    heading: design.headingColor,
-    sidebar: design.sidebarColor,
-    divider: design.dividerColor,
-  });
+  const presentation = getTemplatePresentation(state, templateId, { accentColor });
+  const { template, theme: selectedTheme } = presentation;
   const themeColor = selectedTheme.colors.accent;
-  
-  const fontSizeMap = { small: '10px', normal: '11px', large: '12px' };
-  const fontSize = fontSizeMap[design.fontStyle] || '11px';
-  const fontFamily = design.fontFamily || 'Inter, sans-serif';
-  const pageMargin = `${design.pageMargin ?? 32}px`;
-  const headingLetterSpacing = `${design.headingLetterSpacing ?? 0.5}px`;
+
+  const fontSize = `${presentation.bodyFontPx}px`;
+  const fontFamily = presentation.fontFamily;
+  const pageMargin = `${presentation.pageMarginPx}px`;
+  const headingLetterSpacing = `${presentation.headingLetterSpacingPx}px`;
 
   const TemplateComponent = TEMPLATE_MAP[template?.baseTemplate || templateId] || ClassicTemplate;
   const templateState = templateId === state.meta?.templateId
     ? state
     : { ...state, meta: { ...state.meta, templateId } };
-  const layout = getResumeLayout(templateState, templateId);
+  const layout = presentation.layout;
   const spacing = layout.tokens.sectionGap;
-  const lineHeight = 1.35 + ((design.lineSpacing ?? 50) / 100) * 0.5;
+  const lineHeight = presentation.lineHeight;
   const paragraphSpacing = `${4 + ((design.paragraphSpacing ?? 50) / 100) * 12}px`;
   const borderWidths = { none: '0px', thin: '1px', medium: '2px', thick: '4px' };
   const pageBorder = borderWidths[design.pageBorder] ?? borderWidths.none;
@@ -187,6 +181,7 @@ export default function ResumePreview({
 
   return (
     <div className={`preview-container ${className}`.trim()} style={{
+      ...getPresentationCSSVariables(presentation),
       '--preview-scale': displayScale,
       '--preview-page-height': `${pageHeight}px`,
       '--resume-page-width': '210mm',
@@ -218,6 +213,7 @@ export default function ResumePreview({
         <TemplateComponent
           state={templateState}
           layout={layout}
+          presentation={presentation}
           themeColor={themeColor}
           fontSize={fontSize}
           fontFamily={fontFamily}

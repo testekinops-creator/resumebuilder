@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
 import { filterTemplates, getTemplateTheme, TEMPLATE_CATEGORIES, TEMPLATES } from '../../data/templates';
@@ -23,7 +23,10 @@ export default function TemplateGallery() {
   const pageRef = useRef(null);
   const actionBarRef = useRef(null);
   const visibleTemplates = filterTemplates(category);
-  const selectedTemplate = TEMPLATES.find(template => template.id === selected);
+  const selectedTemplate = useMemo(
+    () => TEMPLATES.find(template => template.id === selected),
+    [selected],
+  );
 
   useLayoutEffect(() => {
     const page = pageRef.current;
@@ -31,15 +34,24 @@ export default function TemplateGallery() {
     if (!page || !actionBar) return undefined;
 
     // Reserve the real bar height, including wrapped names and safe-area padding.
+    let frame = 0;
+    let lastHeight = '';
     const measureActionBar = () => {
       const height = `${Math.ceil(actionBar.getBoundingClientRect().height)}px`;
+      if (height === lastHeight) return;
+      lastHeight = height;
       page.style.setProperty('--template-action-bar-height', height);
     };
+    const scheduleMeasure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measureActionBar);
+    };
     measureActionBar();
-    const observer = new ResizeObserver(measureActionBar);
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(actionBar);
     return () => {
       observer.disconnect();
+      window.cancelAnimationFrame(frame);
       window.cancelAnimationFrame(focusFrameRef.current);
     };
   }, []);
@@ -60,25 +72,27 @@ export default function TemplateGallery() {
     });
   };
 
-  const handleSelect = (templateId) => {
+  const handleSelect = useCallback((templateId) => {
     const template = TEMPLATES.find(item => item.id === templateId);
     if (!template || continuingRef.current) return;
     setSelected(templateId);
-    dispatch({ type: 'SET_META', payload: { templateId } });
-    if (template) {
-      const selectedTheme = getTemplateTheme(template);
-      dispatch({
-        type: 'SET_DESIGN',
-        payload: {
+    const selectedTheme = getTemplateTheme(template);
+    dispatch({
+      type: 'SET_TEMPLATE_AND_DESIGN',
+      payload: {
+        templateId,
+        design: {
           themePreset: selectedTheme.id,
           colorScheme: selectedTheme.colors.accent,
           headingColor: selectedTheme.colors.heading,
           sidebarColor: selectedTheme.colors.sidebar,
           dividerColor: selectedTheme.colors.divider,
         },
-      });
-    }
-  };
+      },
+    });
+  }, [dispatch]);
+
+  const openPreview = useCallback((template) => setPreviewTemplate(template), []);
 
   const handleContinue = (chooseLater = false) => {
     if (continuingRef.current || (!chooseLater && !selectedTemplate)) return;
@@ -121,35 +135,17 @@ export default function TemplateGallery() {
           <p className="template-results-count" aria-live="polite">{visibleTemplates.length} distinct designs</p>
 
           <div className="template-grid">
-            {visibleTemplates.map(template => {
-              const isRecommended = template.recommendedFor.includes(state.meta.experienceLevel);
-              return (
-                <div key={template.id} className={`template-card ${selected === template.id ? 'selected' : ''}`}
-                  onClick={() => handleSelect(template.id)} role="button" tabIndex={0}
-                  onKeyDown={event => {
-                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
-                      event.preventDefault();
-                      handleSelect(template.id);
-                    }
-                  }}
-                  aria-pressed={selected === template.id}
-                  aria-label={`${template.name} template${isRecommended ? ' - Recommended' : ''}`}>
-                  <div className="template-card-badges">
-                    {isRecommended && <span className="badge badge-recommended">Recommended</span>}
-                    {template.atsFriendly && <span className="template-ats-badge"><ResumeIcon name="shield" size={12} />ATS Friendly</span>}
-                  </div>
-                  <div className="template-preview" aria-hidden="true">
-                    <ResumePreview data={TEMPLATE_PREVIEW_DATA} templateId={template.id} accentColor={template.defaultColor} scale={0.22} className="template-thumbnail-resume" />
-                  </div>
-                  {selected === template.id && <div className="template-check"><ResumeIcon name="finish" size={18} /></div>}
-                  <p className="template-name">{template.name}</p>
-                  <p className="template-description">{template.description}</p>
-                  <button type="button" className="template-preview-button" onClick={event => { event.stopPropagation(); setPreviewTemplate(template); }}>
-                    Preview layout
-                  </button>
-                </div>
-              );
-            })}
+            {visibleTemplates.map((template, index) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                isRecommended={template.recommendedFor.includes(state.meta.experienceLevel)}
+                selected={selected === template.id}
+                eager={index < 6}
+                onSelect={handleSelect}
+                onPreview={openPreview}
+              />
+            ))}
           </div>
 
         </div>
@@ -187,3 +183,81 @@ export default function TemplateGallery() {
     </div>
   );
 }
+
+const TemplateCard = memo(function TemplateCard({
+  template,
+  isRecommended,
+  selected,
+  eager,
+  onSelect,
+  onPreview,
+}) {
+  const select = () => onSelect(template.id);
+  return (
+    <div
+      className={`template-card ${selected ? 'selected' : ''}`}
+      onClick={select}
+      role="button"
+      tabIndex={0}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        select();
+      }}
+      aria-pressed={selected}
+      aria-label={`${template.name} template${isRecommended ? ' - Recommended' : ''}`}
+    >
+      <div className="template-card-badges">
+        {isRecommended && <span className="badge badge-recommended">Recommended</span>}
+        {template.atsFriendly && <span className="template-ats-badge"><ResumeIcon name="shield" size={12} />ATS Friendly</span>}
+      </div>
+      <TemplateThumbnail template={template} eager={eager || selected} />
+      {selected && <div className="template-check"><ResumeIcon name="finish" size={18} /></div>}
+      <p className="template-name">{template.name}</p>
+      <p className="template-description">{template.description}</p>
+      <button type="button" className="template-preview-button" onClick={event => { event.stopPropagation(); onPreview(template); }}>
+        Preview layout
+      </button>
+    </div>
+  );
+});
+
+const TemplateThumbnail = memo(function TemplateThumbnail({ template, eager }) {
+  const hostRef = useRef(null);
+  const [loaded, setLoaded] = useState(eager);
+
+  useEffect(() => {
+    if (eager && !loaded) {
+      setLoaded(true);
+      return undefined;
+    }
+    if (loaded) return undefined;
+    const host = hostRef.current;
+    if (!host || typeof IntersectionObserver === 'undefined') {
+      setLoaded(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      setLoaded(true);
+      observer.disconnect();
+    }, { rootMargin: '640px 0px' });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [eager, loaded]);
+
+  return (
+    <div ref={hostRef} className="template-preview" aria-hidden="true">
+      {loaded ? (
+        <ResumePreview
+          data={TEMPLATE_PREVIEW_DATA}
+          templateId={template.id}
+          accentColor={template.defaultColor}
+          scale={0.22}
+          thumbnail
+          className="template-thumbnail-resume"
+        />
+      ) : <div className="template-thumbnail-placeholder" />}
+    </div>
+  );
+});

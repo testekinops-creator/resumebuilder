@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import StepNavigation from '../../../components/StepNavigation';
 import RichTextEditor from '../../../components/RichTextEditor';
 import ResumeIcon from '../../../components/ResumeIcon';
+import BuilderEmptyStateDialog from '../../../components/BuilderEmptyStateDialog';
 import { getTextSkillNames, shouldShowSkillRatings, syncRatingsWithTextSkills } from '../../../utils/skillRatings';
 
 const ratingsAreEqual = (first = [], second = []) => (
@@ -143,7 +144,7 @@ export default function SkillsEditor() {
             </div>
 
             {suggestions && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: 350, overflowY: 'auto' }}>
+              <div className="builder-suggestions builder-skill-suggestions">
                 {suggestions.expert?.map((skill, i) => (
                   <div key={`e-${i}`} style={{
                     display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
@@ -267,25 +268,13 @@ export default function SkillsEditor() {
 
       {/* Empty State Modal */}
       {showEmptyModal && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="mobile-preview-content builder-empty-dialog" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
-            
-            <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Are you sure you don't want to add any skills?</h3>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>
-              A strong skills section helps you pass applicant tracking systems (ATS) and catch recruiters' attention.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button className="btn btn-primary" onClick={() => setShowEmptyModal(false)} style={{ borderRadius: 30, padding: '12px', background: '#D91277', border: 'none' }}>
-                Add skills
-              </button>
-              <button className="btn btn-ghost" onClick={handleSkip} style={{ color: 'var(--color-text-link)', fontWeight: 600, textDecoration: 'underline' }}>
-                No thanks
-              </button>
-            </div>
-          </div>
-        </div>
+        <BuilderEmptyStateDialog
+          title="Are you sure you don't want to add any skills?"
+          description="A strong skills section helps you pass applicant tracking systems (ATS) and catch recruiters' attention."
+          continueLabel="Add skills"
+          onContinue={() => setShowEmptyModal(false)}
+          onSkip={handleSkip}
+        />
       )}
     </div>
   );

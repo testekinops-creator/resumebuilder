@@ -4,7 +4,7 @@ import { useResume } from '../../../context/ResumeContext';
 import { DEGREE_OPTIONS } from '../../../data/templates';
 import StepNavigation from '../../../components/StepNavigation';
 import MonthYearSelect from '../../../components/MonthYearSelect';
-import ResumeIcon from '../../../components/ResumeIcon';
+import BuilderEmptyStateDialog from '../../../components/BuilderEmptyStateDialog';
 
 export default function EducationForm() {
   const navigate = useNavigate();
@@ -123,25 +123,13 @@ export default function EducationForm() {
 
       {/* Empty State Modal */}
       {showEmptyModal && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="mobile-preview-content builder-empty-dialog" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
-            
-            <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Don't forget to include your educational background</h3>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>
-              Employers want to know about your degrees, certifications, and relevant coursework.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button className="btn btn-primary" onClick={() => setShowEmptyModal(false)} style={{ borderRadius: 30, padding: '12px', background: '#D91277', border: 'none' }}>
-                Add education
-              </button>
-              <button className="btn btn-ghost" onClick={handleSkip} style={{ color: 'var(--color-text-link)', fontWeight: 600, textDecoration: 'underline' }}>
-                No thanks
-              </button>
-            </div>
-          </div>
-        </div>
+        <BuilderEmptyStateDialog
+          title="Don't forget to include your educational background"
+          description="Employers want to know about your degrees, certifications, and relevant coursework."
+          continueLabel="Add education"
+          onContinue={() => setShowEmptyModal(false)}
+          onSkip={handleSkip}
+        />
       )}
     </div>
   );

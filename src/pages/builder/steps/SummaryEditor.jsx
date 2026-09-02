@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import RichTextEditor from '../../../components/RichTextEditor';
 import StepNavigation from '../../../components/StepNavigation';
 import ResumeIcon from '../../../components/ResumeIcon';
+import BuilderEmptyStateDialog from '../../../components/BuilderEmptyStateDialog';
 
 export default function SummaryEditor() {
   const { state, dispatch } = useResume();
@@ -59,7 +60,7 @@ export default function SummaryEditor() {
           </div>
 
           {suggestions && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxHeight: 400, overflowY: 'auto' }}>
+            <div className="builder-suggestions builder-summary-suggestions">
               {suggestions.map((text, i) => (
                 <div key={i} className="suggestion-card column"
                   onClick={() => selectSuggestion(text)}>
@@ -98,25 +99,13 @@ export default function SummaryEditor() {
 
       {/* Empty State Modal */}
       {showEmptyModal && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="mobile-preview-content builder-empty-dialog" style={{ maxWidth: 400, width: '100%', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
-            <button className="fe-close-btn" onClick={() => setShowEmptyModal(false)} aria-label="Close message" title="Close message" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><ResumeIcon name="close" size={22} /></button>
-            
-            <h3 style={{ fontSize: 20, marginBottom: 'var(--space-3)' }}>Are you sure you want to skip your professional summary?</h3>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-sm)' }}>
-              A summary is the perfect place to highlight your best achievements and catch the hiring manager's eye right away.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button className="btn btn-primary" onClick={() => setShowEmptyModal(false)} style={{ borderRadius: 30, padding: '12px', background: '#D91277', border: 'none' }}>
-                Add summary
-              </button>
-              <button className="btn btn-ghost" onClick={handleSkip} style={{ color: 'var(--color-text-link)', fontWeight: 600, textDecoration: 'underline' }}>
-                No thanks
-              </button>
-            </div>
-          </div>
-        </div>
+        <BuilderEmptyStateDialog
+          title="Are you sure you want to skip your professional summary?"
+          description="A summary is the perfect place to highlight your best achievements and catch the hiring manager's eye right away."
+          continueLabel="Add summary"
+          onContinue={() => setShowEmptyModal(false)}
+          onSkip={handleSkip}
+        />
       )}
     </div>
   );

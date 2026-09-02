@@ -73,18 +73,20 @@ test('Finalize panels use measured layout rows instead of a hardcoded header off
   assertDeclarations(styles, '.fe-tool-content', { 'min-height': '0', 'overflow-y': 'auto', 'overscroll-behavior': 'contain' });
 });
 
-test('mobile Finalize uses one bounded workspace scroller with sticky tabs', async () => {
+test('mobile Finalize uses a single below-tab tool scroller without letting cards enter the tab layer', async () => {
   const { editor, styles } = await sourceFiles();
   const mobileRules = cssBlock(styles, /@media\s*\(\s*width\s*<=\s*900px\s*\)/);
 
   assertDeclarations(mobileRules, '.final-editor', { height: '100dvh', overflow: 'hidden' });
-  assertDeclarations(mobileRules, '.fe-workspace', { 'overflow-y': 'auto', 'overscroll-behavior': 'contain' });
-  assertDeclarations(mobileRules, '.fe-body', { display: 'contents' });
-  assertDeclarations(mobileRules, '.fe-tools', { display: 'contents' });
-  assertDeclarations(mobileRules, '.fe-tool-tabs', { position: 'sticky', top: '0' });
-  assertDeclarations(mobileRules, '.fe-tool-content', { flex: '0 0 auto', overflow: 'visible' });
+  assertDeclarations(mobileRules, '.fe-workspace', { 'overflow-y': 'hidden' });
+  assertDeclarations(mobileRules, '.fe-body', { display: 'flex', overflow: 'hidden' });
+  assertDeclarations(mobileRules, '.fe-tools', { display: 'flex', overflow: 'hidden', 'min-height': '0' });
+  assertDeclarations(mobileRules, '.fe-tool-tabs', { position: 'relative', top: 'auto' });
+  assertDeclarations(mobileRules, '.fe-tool-content', { flex: '1 1 auto', 'min-height': '0', 'overflow-y': 'auto', 'overscroll-behavior': 'contain' });
   assertDeclarations(mobileRules, '.fe-mobile-summary', { display: 'grid', 'grid-template-columns': 'minmax(0,1fr)' });
   assertDeclarations(mobileRules, '.fe-actions', { display: 'none' });
+  assert.match(editor, /\{isMobileFinalize && \(\s*<section className="fe-mobile-summary"/);
+  assert.match(editor, /className="fe-tool-content" ref=\{toolContentRef\}[\s\S]*\{isMobileFinalize && \(/);
   assert.match(editor, /className="fe-mobile-primary-bar"/);
 });
 

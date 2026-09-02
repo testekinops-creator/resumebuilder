@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResumeIcon from './ResumeIcon';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import './AuthModal.css';
 
 export default function AuthModal({ onClose }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState('john.doe@example.com');
   const [password, setPassword] = useState('password123');
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const dismiss = useCallback(() => onClose?.(), [onClose]);
+
+  useDialogFocus(dialogRef, { onClose: dismiss, initialFocusRef: closeButtonRef });
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -19,14 +25,23 @@ export default function AuthModal({ onClose }) {
   };
 
   return (
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal-content" onClick={e => e.stopPropagation()}>
-        <button className="auth-close-btn" onClick={onClose} aria-label="Close" title="Close">
+    <div className="auth-modal-overlay" role="presentation" onMouseDown={dismiss}>
+      <section
+        ref={dialogRef}
+        className="auth-modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        aria-describedby="auth-modal-description"
+        tabIndex="-1"
+        onMouseDown={event => event.stopPropagation()}
+      >
+        <button ref={closeButtonRef} className="auth-close-btn" onClick={dismiss} aria-label="Close" title="Close">
           <ResumeIcon name="close" size={20} />
         </button>
         
-        <h2 className="auth-title">Welcome Back</h2>
-        <p className="auth-subtitle">Sign in to save and access your resumes</p>
+        <h2 id="auth-modal-title" className="auth-title">Welcome Back</h2>
+        <p id="auth-modal-description" className="auth-subtitle">Sign in to save and access your resumes</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button className="auth-social-btn auth-social-google" onClick={handleSocialLogin}>
@@ -77,7 +92,7 @@ export default function AuthModal({ onClose }) {
             Sign In
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

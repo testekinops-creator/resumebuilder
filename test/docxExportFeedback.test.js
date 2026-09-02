@@ -21,12 +21,19 @@ function callback(source, name, nextName, scope) {
 }
 
 function editorScope(overrides = {}) {
+  const {
+    generateDOCX = async () => {},
+    generatePDF = async () => {},
+    ...rest
+  } = overrides;
   return {
     state: { meta: { id: 'current-resume', templateId: 'metro' }, design: { fontStyle: 'large' } },
     resumeName: 'Current resume', exportJobRef: { current: '' },
-    setGenerating: () => {}, generateDOCX: async () => {}, generatePDF: async () => {},
+    setGenerating: () => {},
+    loadExportTools: async () => ({ generateDOCX, generatePDF }),
+    window: { requestAnimationFrame: callback => { callback(); return 0; } },
     showNotification: () => {}, logDocxExportFailure: () => {}, docxExportFailureFeedback,
-    console: { error: () => {} }, ...overrides,
+    console: { error: () => {} }, ...rest,
   };
 }
 

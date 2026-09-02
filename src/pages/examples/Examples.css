@@ -1,5 +1,7 @@
 .examples-page {
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
   background: var(--color-surface-secondary);
 }
 
@@ -144,7 +146,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-6);
+  padding:
+    max(var(--space-4), var(--safe-area-top))
+    max(var(--space-4), var(--safe-area-right))
+    max(var(--space-4), var(--safe-area-bottom))
+    max(var(--space-4), var(--safe-area-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .example-modal {
@@ -153,7 +162,11 @@
   max-width: 640px;
   width: 100%;
   max-height: 85vh;
+  max-height: calc(100svh - (var(--space-8) + var(--safe-area-top) + var(--safe-area-bottom)));
+  max-height: calc(100dvh - (var(--space-8) + var(--safe-area-top) + var(--safe-area-bottom)));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   position: relative;
   z-index: var(--z-modal);
   animation: modalSlideUp 0.25s ease;
@@ -168,8 +181,8 @@
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-full);
   border: none;
   background: var(--color-surface-tertiary);
@@ -255,5 +268,22 @@
 @media (max-width: 768px) {
   .examples-hero h1 { font-size: var(--font-size-2xl); }
   .examples-grid { grid-template-columns: 1fr; }
-  .example-modal { margin: var(--space-4); max-height: 90vh; }
+  .example-modal {
+    margin: 0;
+    max-height: calc(100svh - (var(--space-6) + var(--safe-area-top) + var(--safe-area-bottom)));
+    max-height: calc(100dvh - (var(--space-6) + var(--safe-area-top) + var(--safe-area-bottom)));
+  }
+}
+
+@media (max-width: 768px), (prefers-reduced-motion: reduce) {
+  .example-modal-backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .example-modal {
+    animation: none;
+  }
 }

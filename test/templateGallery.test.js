@@ -39,6 +39,11 @@ function cssDeclarations(styles, selector) {
 function callbackSource(gallery, name) {
   const start = gallery.indexOf(`const ${name} =`);
   assert.notEqual(start, -1, `Missing callback: ${name}`);
+  if (gallery.slice(start).startsWith(`const ${name} = useCallback(`)) {
+    const end = gallery.indexOf('\n\n', start);
+    assert.notEqual(end, -1, `Unclosed callback: ${name}`);
+    return gallery.slice(start, end);
+  }
   const end = gallery.indexOf('\n  };', start);
   assert.notEqual(end, -1, `Unclosed callback: ${name}`);
   return gallery.slice(start, end + '\n  };'.length);
@@ -60,6 +65,7 @@ function continuationHarness(gallery, selectedTemplate) {
     continuingRef,
     selectedTemplate,
     setIsContinuing: value => busyStates.push(value),
+    useCallback: callback => callback,
     navigate: destination => {
       assert.equal(continuingRef.current, true, 'Lock navigation before calling the router');
       destinations.push(destination);
@@ -88,13 +94,13 @@ test('the selected template name and primary action use a valid catalog selectio
   const footer = confirmationSource(gallery);
 
   assert.match(gallery, /useState\(state\.meta\.templateId \|\| ''\)/);
-  assert.match(gallery, /selectedTemplate\s*=\s*TEMPLATES\.find\([^;]*\.id === selected\)/);
+  assert.match(gallery, /TEMPLATES\.find\(template => template\.id === selected\)/);
   assert.match(footer, /selectedTemplate\??\.name/);
   assert.match(footer, /aria-live="polite"/);
   assert.match(footer, /disabled=\{[^}]*!selectedTemplate[^}]*\}/);
-  assert.match(gallery, /aria-pressed=\{selected === template\.id\}/);
-  assert.match(gallery, /selected === template\.id \? 'selected' : ''/);
-  assert.match(gallery, /selected === template\.id && <div className="template-check"/);
+  assert.match(gallery, /selected=\{selected === template\.id\}/);
+  assert.match(gallery, /selected \? 'selected' : ''/);
+  assert.match(gallery, /selected && <div className="template-check"/);
 });
 
 test('selecting a card or preview updates resume metadata and theme without forced scrolling', async () => {
@@ -103,9 +109,10 @@ test('selecting a card or preview updates resume metadata and theme without forc
   const preview = callbackSource(gallery, 'applyPreviewTemplate');
 
   assert.match(select, /setSelected\(templateId\)/);
-  assert.match(select, /type:\s*'SET_META',\s*payload:\s*\{\s*templateId\s*\}/);
+  assert.match(select, /type:\s*'SET_TEMPLATE_AND_DESIGN'/);
+  assert.match(select, /templateId,/);
   assert.match(select, /getTemplateTheme\(template\)/);
-  assert.match(select, /type:\s*'SET_DESIGN'/);
+  assert.match(select, /design:\s*\{/);
   for (const property of ['themePreset', 'colorScheme', 'headingColor', 'sidebarColor', 'dividerColor']) {
     assert.match(select, new RegExp(`\\b${property}:`));
   }
@@ -125,6 +132,7 @@ test('every catalog selection applies that exact template and theme, while inval
     continuingRef,
     setSelected: templateId => selectedIds.push(templateId),
     dispatch: action => actions.push(structuredClone(action)),
+    useCallback: callback => callback,
   });
 
   assert.ok(TEMPLATES.length >= 35);
@@ -132,19 +140,21 @@ test('every catalog selection applies that exact template and theme, while inval
     actions.length = 0;
     select(template.id);
     assert.equal(selectedIds.at(-1), template.id);
-    assert.deepEqual(actions[0], { type: 'SET_META', payload: { templateId: template.id } });
     const theme = getTemplateTheme(template);
-    assert.deepEqual(actions[1], {
-      type: 'SET_DESIGN',
+    assert.deepEqual(actions[0], {
+      type: 'SET_TEMPLATE_AND_DESIGN',
       payload: {
-        themePreset: theme.id,
-        colorScheme: theme.colors.accent,
-        headingColor: theme.colors.heading,
-        sidebarColor: theme.colors.sidebar,
-        dividerColor: theme.colors.divider,
+        templateId: template.id,
+        design: {
+          themePreset: theme.id,
+          colorScheme: theme.colors.accent,
+          headingColor: theme.colors.heading,
+          sidebarColor: theme.colors.sidebar,
+          dividerColor: theme.colors.divider,
+        },
       },
     });
-    assert.equal(actions.length, 2);
+    assert.equal(actions.length, 1);
   }
   actions.length = 0;
   select('missing-template');
@@ -158,11 +168,10 @@ test('card keyboard selection supports Space and Enter without hijacking preview
   const { gallery } = await sourceFiles();
 
   assert.match(gallery, /role="button"\s+tabIndex=\{0\}/);
-  assert.match(gallery, /event\.target\s*===\s*event\.currentTarget/);
-  assert.match(gallery, /event\.key === 'Enter'/);
-  assert.match(gallery, /event\.key === ' '/);
+  assert.match(gallery, /event\.target\s*!==\s*event\.currentTarget/);
+  assert.match(gallery, /\['Enter', ' '\]\.includes\(event\.key\)/);
   assert.match(gallery, /event\.preventDefault\(\)/);
-  assert.match(gallery, /event\.stopPropagation\(\);\s*setPreviewTemplate\(template\)/);
+  assert.match(gallery, /event\.stopPropagation\(\);\s*onPreview\(template\)/);
 });
 
 test('keyboard focus reveals occluded controls without scrolling for pointer or stale focus', async () => {
@@ -172,7 +181,7 @@ test('keyboard focus reveals occluded controls without scrolling for pointer or 
   assert.match(gallery, /onFocusCapture=\{revealFocusedControl\}/);
   assert.match(gallery, /onKeyDownCapture=\{[^}]*event\.key === 'Tab'[^}]*keyboardNavigationRef\.current = true/);
   assert.match(gallery, /onPointerDownCapture=\{[^}]*keyboardNavigationRef\.current = false/);
-  assert.match(gallery, /return \(\) => \{\s*observer\.disconnect\(\);\s*window\.cancelAnimationFrame\(focusFrameRef\.current\)/);
+  assert.match(gallery, /return \(\) => \{\s*observer\.disconnect\(\);\s*window\.cancelAnimationFrame\(frame\);\s*window\.cancelAnimationFrame\(focusFrameRef\.current\)/);
 
   function focusCase({ keyboard = true, eligible = true, bounds = { top: 160, bottom: 204 }, nameBounds = null, beforeFrame } = {}) {
     const scrolls = [];
@@ -273,7 +282,7 @@ test('content reserves the measured footer height as its layout changes', async 
   assert.match(confirmationSource(gallery), /ref=\{actionBarRef\}/);
   assert.match(gallery, /const height = [^;]*actionBar\.getBoundingClientRect\(\)\.height/);
   assert.match(gallery, /page\.style\.setProperty\('--template-action-bar-height', height\)/);
-  assert.match(gallery, /measureActionBar\(\);\s*const observer = new ResizeObserver\(measureActionBar\)/);
+  assert.match(gallery, /measureActionBar\(\);\s*const observer = new ResizeObserver\(scheduleMeasure\)/);
   assert.match(gallery, /observer\.observe\(actionBar\)/);
   assert.match(gallery, /observer\.disconnect\(\)/);
   assert.match(content['padding-bottom'], /var\(--template-action-bar-height(?:,[^)]+)?\)/);

@@ -35,8 +35,20 @@ const TEMPLATE_MAP = {
 const PRINT_LAYOUT_SCALE = 0.75;
 const A4_PAGE_HEIGHT_PX = 1123;
 
-export default function ResumePreview({
-  data,
+export default function ResumePreview({ data, ...props }) {
+  // Static template thumbnails must not subscribe to the mutable resume
+  // context. Otherwise choosing one template rerenders every thumbnail.
+  if (data) return <ResumePreviewRender {...props} state={data} />;
+  return <ConnectedResumePreview {...props} />;
+}
+
+function ConnectedResumePreview(props) {
+  const { state } = useResume();
+  return <ResumePreviewRender {...props} state={state} />;
+}
+
+function ResumePreviewRender({
+  state,
   templateId: templateIdOverride,
   accentColor,
   highlightSection: _highlightSection = '',
@@ -51,9 +63,8 @@ export default function ResumePreview({
   onSectionHover,
   onPageCountChange,
   viewerScale,
+  thumbnail = false,
 }) {
-  const context = useResume({ optional: Boolean(data) });
-  const state = data || context.state;
   const previewPageRef = useRef(null);
   const lastFocusRequestRef = useRef(0);
   const [pageHeight, setPageHeight] = useState(A4_PAGE_HEIGHT_PX);
@@ -84,6 +95,7 @@ export default function ResumePreview({
   // Measure the actual resume so the surrounding preview panel can grow/scroll
   // instead of letting controls overlap a long resume.
   useLayoutEffect(() => {
+    if (thumbnail) return undefined;
     const page = previewPageRef.current;
     if (!page) return undefined;
 
@@ -96,7 +108,7 @@ export default function ResumePreview({
     const observer = new ResizeObserver(measure);
     observer.observe(page);
     return () => observer.disconnect();
-  }, [state, templateId, displayScale]);
+  }, [state, templateId, displayScale, thumbnail]);
 
   useLayoutEffect(() => {
     if (!onPageCountChange) return undefined;
@@ -105,6 +117,7 @@ export default function ResumePreview({
   }, [onPageCountChange, pageHeight]);
 
   useLayoutEffect(() => {
+    if (thumbnail) return undefined;
     const page = previewPageRef.current;
     if (!page) return undefined;
 
@@ -142,7 +155,7 @@ export default function ResumePreview({
       focusTarget.classList.remove('resume-section-recently-updated');
     }, 1800);
     return () => window.clearTimeout(clearHighlight);
-  }, [state, templateId, interactive, selectedSection, hoveredSection, focusSection, focusRequest]);
+  }, [state, templateId, interactive, selectedSection, hoveredSection, focusSection, focusRequest, thumbnail]);
 
   const getSectionIdFromEvent = (event) => {
     const sectionElement = event.target?.closest?.('.tmpl-section');

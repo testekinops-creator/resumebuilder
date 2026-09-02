@@ -5,6 +5,7 @@
   background: var(--color-surface-tertiary);
   flex-direction: column;
   height: 100vh;
+  height: 100svh;
   height: 100dvh;
   min-height: 0;
   display: flex;
@@ -20,7 +21,7 @@
 }
 
 .fe-topbar {
-  padding: var(--space-2) var(--space-4);
+  padding: max(var(--space-2), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) var(--space-2) max(var(--space-4), env(safe-area-inset-left));
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   z-index: var(--z-sticky);
@@ -87,6 +88,10 @@
   position: absolute;
   top: 100%;
   left: 0;
+  max-width: calc(100vw - (var(--space-8) + env(safe-area-inset-left) + env(safe-area-inset-right)));
+  max-height: calc(100dvh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .fe-dropdown button {
@@ -297,6 +302,12 @@
   align-items: flex-start;
   display: flex;
   overflow: hidden;
+}
+
+.fe-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--color-surface-secondary), var(--color-surface));
 }
 
 .fe-template-thumbnail {
@@ -939,7 +950,7 @@
 
 .fe-section-dialog-backdrop {
   z-index: 1100;
-  padding: var(--space-4);
+  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
   background: #0f172a8c;
   grid-template-columns: minmax(0,1fr);
   place-items: center;
@@ -953,10 +964,15 @@
   width: 100%;
   min-width: 0;
   max-width: 440px;
+  max-height: calc(100svh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  max-height: calc(100dvh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
   padding: var(--space-6);
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fe-section-dialog h2 {
@@ -987,6 +1003,7 @@
   max-height: min(720px, calc(100dvh - var(--space-8)));
   flex-direction: column;
   display: flex;
+  overflow: hidden;
 }
 
 .fe-reorder-dialog-header {
@@ -1673,8 +1690,10 @@
 
 .fe-drag-handle {
   cursor: grab;
-  width: 20px;
-  min-height: 20px;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  height: 32px;
   color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
   letter-spacing: -1px;
@@ -1682,6 +1701,8 @@
   justify-content: center;
   align-items: center;
   padding: 0;
+  border: 0;
+  background: transparent;
   display: inline-flex;
 }
 
@@ -1806,6 +1827,46 @@
   cursor: grabbing;
 }
 
+.fe-drag-handle:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px), (pointer: coarse) {
+  .fe-sortable-item {
+    touch-action: pan-y;
+  }
+
+  .fe-drag-handle {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    touch-action: none;
+  }
+
+  .fe-section-move-btn,
+  .fe-section-column-btn {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .fe-template-filter,
+  .fe-check-categories button,
+  .fe-check-navigation button,
+  .fe-check-suggestions button,
+  .fe-check-issue-actions .btn,
+  .fe-check-issue-list button {
+    min-height: 44px;
+  }
+
+  .fe-template-filter {
+    min-width: 44px;
+  }
+}
+
 .fe-mobile-summary,.fe-mobile-primary-bar {
   display: none;
 }
@@ -1825,12 +1886,16 @@
 
 .fe-mobile-actions-sheet {
   width: min(100%,480px);
+  max-height: calc(100dvh - env(safe-area-inset-top));
   padding: var(--space-5) max(var(--space-4), env(safe-area-inset-right)) calc(var(--space-5) + env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--color-surface);
   border-bottom: 0;
   box-shadow: 0 -18px 48px #0f172a47;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fe-mobile-actions-heading {
@@ -1902,6 +1967,7 @@
 @media (width<=900px) {
   .final-editor {
     height: 100vh;
+    height: 100svh;
     height: 100dvh;
     min-height: 0;
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
@@ -1910,15 +1976,14 @@
 
   .fe-workspace {
     overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow-y: hidden;
   }
 
   .fe-body {
     min-height: 0;
-    flex: 0 0 auto;
-    display: contents;
-    overflow: visible;
+    flex: 1 1 auto;
+    display: flex;
+    overflow: hidden;
   }
 
   .fe-tools {
@@ -1926,16 +1991,18 @@
     border-bottom: 1px solid var(--color-border);
     width: 100%;
     height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
     max-height: none;
     scrollbar-gutter: auto;
-    overflow: visible;
-    display: contents;
+    overflow: hidden;
+    display: flex;
   }
 
   .fe-tool-tabs {
     width: 100%;
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
   }
 
   .fe-tool-tab {
@@ -1951,9 +2018,20 @@
     padding: var(--space-5) max(var(--space-4), env(safe-area-inset-right)) var(--space-6) max(var(--space-4), env(safe-area-inset-left));
     border-bottom: 1px solid var(--color-border);
     background: var(--color-surface);
-    flex: 0 0 auto;
-    overflow: visible;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     scrollbar-gutter: auto;
+  }
+
+  /* The workspace owns normal mobile scrolling. These lists stay in flow so
+     flicking through a tool panel cannot trap the user in a nested scroller. */
+  .fe-template-filters,.fe-check-issue-list {
+    max-height: none;
+    overflow: visible;
   }
 
   .fe-swatch {
@@ -2087,6 +2165,10 @@
     left: auto;
     right: 0;
   }
+
+  .fe-menu-wrapper > .btn {
+    min-height: 44px;
+  }
 }
 
 .final-editor .mobile-preview-overlay {
@@ -2132,5 +2214,15 @@
   .fe-mobile-quick-actions .fe-section-action-controls {
     justify-content: flex-end;
     width: 100%;
+  }
+}
+
+@media (width<=900px) {
+  .fe-mobile-actions-backdrop,
+  .final-editor .mobile-preview-overlay,
+  .fe-review-drawer::backdrop,
+  .fe-mobile-primary-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

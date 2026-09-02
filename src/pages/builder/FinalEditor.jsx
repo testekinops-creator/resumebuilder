@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useResume } from '../../context/ResumeContext';
 import {
@@ -13,7 +13,6 @@ import { TEMPLATE_PREVIEW_DATA } from '../../data/templatePreviewData';
 import ResumePreview from '../../components/ResumePreview';
 import ResumePreviewViewer from '../../components/ResumePreviewViewer';
 import PrintableResume from '../../components/PrintableResume';
-import EmailResumeDialog from '../../components/EmailResumeDialog';
 import { getOrderedSectionIds, getResumeLayout, getSectionColumns, getSectionDisplayName, getSectionEditRoute, isCustomResumeSection } from '../../utils/resumeSections';
 import {
   addToPersonalDictionary,
@@ -22,7 +21,6 @@ import {
   loadQualityIgnores,
   saveQualityIgnore,
 } from '../../utils/resumeQuality';
-import { generateDOCX, generatePDF, printResume } from '../../utils/pdfGenerator';
 import { DOCX_PREPARING_LABEL, docxExportFailureFeedback, logDocxExportFailure } from '../../utils/docxExportFeedback';
 import { getNextTabId, getTabScrollLeft } from '../../utils/finalizeNavigation';
 import {
@@ -31,12 +29,18 @@ import {
   isFinalizeWelcomeDismissed,
 } from '../../utils/storage';
 import AuthModal from '../../components/AuthModal';
-import { DndContext, DragOverlay, KeyboardSensor, closestCenter, PointerSensor, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ResumeIcon from '../../components/ResumeIcon';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { useDismissiblePopover } from '../../hooks/useDismissiblePopover';
 import { useTheme } from '../../hooks/useTheme';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './FinalEditor.css';
+
+const EmailResumeDialog = lazy(() => import('../../components/EmailResumeDialog'));
+const loadExportTools = () => import('../../utils/pdfGenerator');
 
 const PAGE_BORDER_OPTIONS = [
   { id: 'none', label: 'None', description: 'No outer page border' },
@@ -97,6 +101,7 @@ export default function FinalEditor() {
   // in the saved light/dark theme after a reload.
   useTheme();
   const { state, dispatch, completeness, canUndo, canRedo } = useResume();
+  const isMobileFinalize = useMediaQuery('(max-width: 900px)');
   const location = useLocation();
   const navigate = useNavigate();
   const design = state.design;
@@ -129,25 +134,89 @@ export default function FinalEditor() {
   const [renameValue, setRenameValue] = useState('');
   const [showSectionReorder, setShowSectionReorder] = useState(false);
   const [pageCount, setPageCount] = useState(1);
+  const [isPrintDocumentMounted, setIsPrintDocumentMounted] = useState(false);
   const previewRef = useRef(null);
   const workspaceRef = useRef(null);
   const toolContentRef = useRef(null);
   const tabListRef = useRef(null);
+  const mobileActionsDialogRef = useRef(null);
+  const mobileActionsCloseRef = useRef(null);
+  const pendingDownloadDialogRef = useRef(null);
+  const pendingDownloadCancelRef = useRef(null);
+  const renameDialogRef = useRef(null);
+  const renameInputRef = useRef(null);
+  const welcomeDialogRef = useRef(null);
+  const welcomeCloseRef = useRef(null);
+  const menuTriggerRef = useRef(null);
+  const menuPopoverRef = useRef(null);
   const exportJobRef = useRef('');
   const selectedTemplate = getTemplateById(state.meta?.templateId);
   const visibleTemplates = filterTemplates(templateCategory);
+  // Resume Check only depends on authored resume content, not presentation
+  // controls, title edits, modal state, or scrolling. Keeping this reference
+  // stable prevents a full writing scan for every Finalize UI interaction.
+  const qualityState = useMemo(() => ({
+    contact: state.contact,
+    workHistory: state.workHistory,
+    education: state.education,
+    skills: state.skills,
+    summary: state.summary,
+    certifications: state.certifications,
+    extraSections: state.extraSections,
+  }), [
+    state.certifications,
+    state.contact,
+    state.education,
+    state.extraSections,
+    state.skills,
+    state.summary,
+    state.workHistory,
+  ]);
+  const deferredQualityState = useDeferredValue(qualityState);
   const qualityReport = useMemo(
     () => {
       void dictionaryRevision;
-      return getResumeQualityReport(state, { ignoredFingerprints: ignoredQualityIssues });
+      return getResumeQualityReport(deferredQualityState, { ignoredFingerprints: ignoredQualityIssues });
     },
-    [dictionaryRevision, ignoredQualityIssues, state],
+    [deferredQualityState, dictionaryRevision, ignoredQualityIssues],
   );
   const writingIssueCount = qualityReport.findings.filter(finding => finding.category !== 'completeness').length;
   const filteredQualityFindings = qualityCategory === 'all'
     ? qualityReport.findings
     : qualityReport.findings.filter(finding => finding.category === qualityCategory);
   const activeQualityIssue = filteredQualityFindings[Math.min(qualityIssueIndex, Math.max(0, filteredQualityFindings.length - 1))];
+
+  const dismissWelcome = useCallback(() => {
+    dismissFinalizeWelcome(state.meta?.id);
+    setShowWelcome(false);
+  }, [state.meta?.id]);
+
+  useDialogFocus(mobileActionsDialogRef, {
+    enabled: showMobileActions,
+    onClose: () => setShowMobileActions(false),
+    initialFocusRef: mobileActionsCloseRef,
+  });
+  useDialogFocus(pendingDownloadDialogRef, {
+    enabled: Boolean(pendingDownload),
+    onClose: () => setPendingDownload(''),
+    initialFocusRef: pendingDownloadCancelRef,
+  });
+  useDialogFocus(renameDialogRef, {
+    enabled: Boolean(sectionPendingRename),
+    onClose: () => setSectionPendingRename(''),
+    initialFocusRef: renameInputRef,
+  });
+  useDialogFocus(welcomeDialogRef, {
+    enabled: showWelcome,
+    onClose: dismissWelcome,
+    initialFocusRef: welcomeCloseRef,
+  });
+  useDismissiblePopover({
+    open: showMenu,
+    onClose: () => setShowMenu(false),
+    triggerRef: menuTriggerRef,
+    popoverRef: menuPopoverRef,
+  });
 
   const showNotification = useCallback(({ type = 'error', title, message }) => {
     setNotification({ id: Date.now(), type, title, message });
@@ -189,21 +258,21 @@ export default function FinalEditor() {
       return undefined;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setShowMobileActions(false);
-    };
     const closeOnDesktop = (event) => {
       if (!event.matches) setShowMobileActions(false);
     };
 
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', closeOnEscape);
-    mobileQuery.addEventListener('change', closeOnDesktop);
+    if (mobileQuery.addEventListener) {
+      mobileQuery.addEventListener('change', closeOnDesktop);
+    } else {
+      mobileQuery.addListener(closeOnDesktop);
+    }
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', closeOnEscape);
-      mobileQuery.removeEventListener('change', closeOnDesktop);
+      if (mobileQuery.removeEventListener) {
+        mobileQuery.removeEventListener('change', closeOnDesktop);
+      } else {
+        mobileQuery.removeListener(closeOnDesktop);
+      }
     };
   }, [showMobileActions]);
 
@@ -220,6 +289,10 @@ export default function FinalEditor() {
     exportJobRef.current = exportFormat;
     setGenerating(exportFormat);
     try {
+      // Let the loading state paint before loading export-only libraries and
+      // doing layout work on the main thread.
+      await new Promise(resolve => window.requestAnimationFrame(resolve));
+      const { generateDOCX, generatePDF } = await loadExportTools();
       if (exportFormat === 'docx') {
         await generateDOCX({ state, resumeName });
       } else {
@@ -264,8 +337,13 @@ export default function FinalEditor() {
 
     exportJobRef.current = 'print';
     setGenerating('print');
+    setIsPrintDocumentMounted(true);
     try {
+      // Mount the print-only DOM on demand and yield one frame so the browser
+      // can paint the loading feedback before opening the native dialog.
+      await new Promise(resolve => window.requestAnimationFrame(resolve));
       document.body.classList.add('resume-printing');
+      const { printResume } = await loadExportTools();
       await printResume();
     } catch (error) {
       console.error('Resume print failed', {
@@ -280,27 +358,25 @@ export default function FinalEditor() {
       });
     } finally {
       document.body.classList.remove('resume-printing');
+      setIsPrintDocumentMounted(false);
       exportJobRef.current = '';
       setGenerating('');
     }
   };
 
-  const dismissWelcome = () => {
-    dismissFinalizeWelcome(state.meta?.id);
-    setShowWelcome(false);
-  };
-
   const selectTemplate = (template) => {
     const selectedTheme = getTemplateTheme(template);
-    dispatch({ type: 'SET_META', payload: { templateId: template.id } });
     dispatch({
-      type: 'SET_DESIGN',
+      type: 'SET_TEMPLATE_AND_DESIGN',
       payload: {
-        themePreset: selectedTheme.id,
-        colorScheme: selectedTheme.colors.accent,
-        headingColor: selectedTheme.colors.heading,
-        sidebarColor: selectedTheme.colors.sidebar,
-        dividerColor: selectedTheme.colors.divider,
+        templateId: template.id,
+        design: {
+          themePreset: selectedTheme.id,
+          colorScheme: selectedTheme.colors.accent,
+          headingColor: selectedTheme.colors.heading,
+          sidebarColor: selectedTheme.colors.sidebar,
+          dividerColor: selectedTheme.colors.divider,
+        },
       },
     });
   };
@@ -437,11 +513,11 @@ export default function FinalEditor() {
           <input className="fe-resume-name" type="text" value={resumeName}
             onChange={handleNameChange} maxLength={50} aria-label="Resume name" />
           <div className="fe-menu-wrapper">
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowMenu(!showMenu)}>More</button>
+            <button ref={menuTriggerRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setShowMenu(current => !current)} aria-haspopup="menu" aria-expanded={showMenu} aria-controls="finalize-more-menu">More</button>
             {showMenu && (
-              <div className="fe-dropdown">
-                <button onClick={() => { exportResumeJSON(state); setShowMenu(false); }}><ResumeIcon name="save" size={16} />Export JSON Backup</button>
-                <button onClick={() => { dispatch({ type: 'RESET' }); setResumeName('My Resume'); setShowMenu(false); }}><ResumeIcon name="delete" size={16} />Start New Resume</button>
+              <div ref={menuPopoverRef} className="fe-dropdown" id="finalize-more-menu" role="menu" aria-label="More resume actions">
+                <button type="button" role="menuitem" onClick={() => { exportResumeJSON(state); setShowMenu(false); }}><ResumeIcon name="save" size={16} />Export JSON Backup</button>
+                <button type="button" role="menuitem" onClick={() => { dispatch({ type: 'RESET' }); setResumeName('My Resume'); setShowMenu(false); }}><ResumeIcon name="delete" size={16} />Start New Resume</button>
               </div>
             )}
           </div>
@@ -498,7 +574,7 @@ export default function FinalEditor() {
 
                 <h3 style={{ marginTop: 'var(--space-5)' }}>{visibleTemplates.length} distinct designs</h3>
                 <div className="fe-template-grid">
-                  {visibleTemplates.map(template => (
+                  {visibleTemplates.map((template, index) => (
                     <div key={template.id} className={`fe-template-thumb ${state.meta.templateId === template.id ? 'active' : ''}`}
                       onClick={() => selectTemplate(template)} role="button" tabIndex={0}
                       onKeyDown={event => {
@@ -506,15 +582,10 @@ export default function FinalEditor() {
                         event.preventDefault();
                         selectTemplate(template);
                       }}>
-                      <div className="fe-thumb-preview">
-                        <ResumePreview
-                          data={TEMPLATE_PREVIEW_DATA}
-                          templateId={template.id}
-                          accentColor={template.defaultColor}
-                          scale={0.15}
-                          className="fe-template-thumbnail"
-                        />
-                      </div>
+                      <FinalizeTemplateThumbnail
+                        template={template}
+                        eager={index < 4 || state.meta.templateId === template.id}
+                      />
                       <span className="fe-thumb-name">{template.name}</span>
                       <span className="fe-thumb-meta">{template.layout === '2-column' ? 'Two column' : 'Single column'}{template.atsFriendly ? ' · ATS' : ''}</span>
                     </div>
@@ -652,23 +723,38 @@ export default function FinalEditor() {
                 onAddToDictionary={addQualityWordToDictionary}
               />
             )}
+
+            {isMobileFinalize && selectedSection && (
+              <div className="fe-mobile-quick-actions">
+                <SectionQuickActions
+                  sectionName={selectedSectionName}
+                  canEdit={Boolean(getSectionEditRoute(state, selectedSection))}
+                  onEdit={editSelectedSection}
+                  onDelete={() => setSectionPendingDelete(selectedSection)}
+                  onRename={requestRenameSelectedSection}
+                  onReorder={() => { setActiveTab('sections'); setShowSectionReorder(true); }}
+                />
+              </div>
+            )}
+
+            {isMobileFinalize && (
+              <section className="fe-mobile-summary" aria-label="Review and finish your resume">
+                <ProfileCompletion completeness={completeness} scoreColor={scoreColor} pageCount={pageCount} id="mobile-profile-completion" compact />
+                <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" score={qualityReport.score} onOpen={openResumeCheck} />
+                <FinalizeActionButtons
+                  generating={generating}
+                  onDownload={handleDownload}
+                  onPrint={handlePrint}
+                  onEmail={() => setShowEmailDialog(true)}
+                  onFinish={() => setShowAuthModal(true)}
+                  onPreview={() => setShowPreviewViewer(true)}
+                />
+              </section>
+            )}
           </div>
         </aside>
 
-        {selectedSection && (
-          <div className="fe-mobile-quick-actions">
-            <SectionQuickActions
-              sectionName={selectedSectionName}
-              canEdit={Boolean(getSectionEditRoute(state, selectedSection))}
-              onEdit={editSelectedSection}
-              onDelete={() => setSectionPendingDelete(selectedSection)}
-              onRename={requestRenameSelectedSection}
-              onReorder={() => { setActiveTab('sections'); setShowSectionReorder(true); }}
-            />
-          </div>
-        )}
-
-        <main className="fe-main">
+        {!isMobileFinalize && <main className="fe-main">
           {selectedSection && (
             <SectionQuickActions
               sectionName={selectedSectionName}
@@ -694,25 +780,12 @@ export default function FinalEditor() {
               />
             </div>
           </div>
-        </main>
+        </main>}
 
         <aside className="fe-actions" aria-label="Resume review and actions">
           <FinalizeActionPanel {...actionPanelProps} idPrefix="desktop" />
         </aside>
         </div>
-
-      <section className="fe-mobile-summary" aria-label="Review and finish your resume">
-        <ProfileCompletion completeness={completeness} scoreColor={scoreColor} pageCount={pageCount} id="mobile-profile-completion" compact />
-        <ResumeReview findings={reviewFindings} id="mobile-resume-review-title" score={qualityReport.score} onOpen={openResumeCheck} />
-        <FinalizeActionButtons
-          generating={generating}
-          onDownload={handleDownload}
-          onPrint={handlePrint}
-          onEmail={() => setShowEmailDialog(true)}
-          onFinish={() => setShowAuthModal(true)}
-          onPreview={() => setShowPreviewViewer(true)}
-        />
-      </section>
       </div>
 
       {showReviewActions && (
@@ -738,13 +811,13 @@ export default function FinalEditor() {
 
       {showMobileActions && (
         <div className="fe-mobile-actions-backdrop" role="presentation" onMouseDown={() => setShowMobileActions(false)}>
-          <section className="fe-mobile-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-actions-title" onMouseDown={event => event.stopPropagation()}>
+          <section ref={mobileActionsDialogRef} className="fe-mobile-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-actions-title" tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
             <div className="fe-mobile-actions-heading">
               <div>
                 <h2 id="mobile-actions-title">Download and share</h2>
                 <p>Choose what you want to do with this resume.</p>
               </div>
-              <button type="button" className="btn btn-icon btn-ghost" onClick={() => setShowMobileActions(false)} aria-label="Close resume actions" autoFocus>
+              <button ref={mobileActionsCloseRef} type="button" className="btn btn-icon btn-ghost" onClick={() => setShowMobileActions(false)} aria-label="Close resume actions">
                 <ResumeIcon name="close" size={20} />
               </button>
             </div>
@@ -768,12 +841,12 @@ export default function FinalEditor() {
 
       {pendingDownload && (
         <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={() => setPendingDownload('')}>
-          <section className="fe-section-dialog fe-download-warning" role="dialog" aria-modal="true" aria-labelledby="download-warning-title" onMouseDown={event => event.stopPropagation()}>
+          <section ref={pendingDownloadDialogRef} className="fe-section-dialog fe-download-warning" role="dialog" aria-modal="true" aria-labelledby="download-warning-title" tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
             <div className="fe-download-warning-icon"><ResumeIcon name="shield" size={22} /></div>
             <h2 id="download-warning-title">We found {writingIssueCount} possible writing {writingIssueCount === 1 ? 'issue' : 'issues'}.</h2>
             <p>Your resume can still be downloaded. Review the suggestions first, or continue with the content exactly as written.</p>
             <div className="fe-section-dialog-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setPendingDownload('')}>Cancel</button>
+              <button ref={pendingDownloadCancelRef} type="button" className="btn btn-ghost" onClick={() => setPendingDownload('')}>Cancel</button>
               <button type="button" className="btn btn-outline-dark" onClick={() => {
                 setPendingDownload('');
                 openResumeCheck();
@@ -802,11 +875,11 @@ export default function FinalEditor() {
       )}
       {sectionPendingRename && (
         <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={() => setSectionPendingRename('')}>
-          <form className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-section-title" onSubmit={saveSectionRename} onMouseDown={event => event.stopPropagation()}>
+          <form ref={renameDialogRef} className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-section-title" tabIndex={-1} onSubmit={saveSectionRename} onMouseDown={event => event.stopPropagation()}>
             <h2 id="rename-section-title">Rename section</h2>
             <p>Use a title that best describes this part of your resume.</p>
             <label className="form-label" htmlFor="section-rename">Section title</label>
-            <input id="section-rename" className="form-input" value={renameValue} onChange={event => setRenameValue(event.target.value)} maxLength={60} autoFocus />
+            <input ref={renameInputRef} id="section-rename" className="form-input" value={renameValue} onChange={event => setRenameValue(event.target.value)} maxLength={60} />
             <div className="fe-section-dialog-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setSectionPendingRename('')}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={!renameValue.trim()}>Save name</button>
@@ -826,13 +899,13 @@ export default function FinalEditor() {
         />
       )}
       {showWelcome && (
-        <div className="mobile-preview-overlay" style={{ zIndex: 1000 }} onClick={dismissWelcome}>
-          <div className="mobile-preview-content fe-welcome-card" onClick={event => event.stopPropagation()}>
-            <button className="fe-close-btn" onClick={dismissWelcome} aria-label="Dismiss welcome message" title="Dismiss welcome message"><ResumeIcon name="close" size={20} /></button>
-            <h2>Great work, {state.contact.firstName || 'there'}!</h2>
+        <div className="mobile-preview-overlay" role="presentation" onMouseDown={dismissWelcome}>
+          <section ref={welcomeDialogRef} className="mobile-preview-content fe-welcome-card" role="dialog" aria-modal="true" aria-labelledby="finalize-welcome-title" tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
+            <button ref={welcomeCloseRef} type="button" className="fe-close-btn" onClick={dismissWelcome} aria-label="Dismiss welcome message" title="Dismiss welcome message"><ResumeIcon name="close" size={20} /></button>
+            <h2 id="finalize-welcome-title">Great work, {state.contact.firstName || 'there'}!</h2>
             <p>Your resume is looking good. We're just one step away from finalizing it!</p>
-            <button className="btn btn-primary" onClick={dismissWelcome}>Got it</button>
-          </div>
+            <button type="button" className="btn btn-primary" onClick={dismissWelcome}>Got it</button>
+          </section>
         </div>
       )}
       {showPreviewViewer && (
@@ -844,13 +917,15 @@ export default function FinalEditor() {
           )}
         />
       )}
-      <PrintableResume state={state} />
+      {isPrintDocumentMounted && <PrintableResume state={state} />}
       {showEmailDialog && (
-        <EmailResumeDialog
-          state={state}
-          resumeName={resumeName}
-          onClose={() => setShowEmailDialog(false)}
-        />
+        <Suspense fallback={<div className="loading-overlay" role="status"><div className="spinner" /><p>Opening share options...</p></div>}>
+          <EmailResumeDialog
+            state={state}
+            resumeName={resumeName}
+            onClose={() => setShowEmailDialog(false)}
+          />
+        </Suspense>
       )}
       {notification && (
         <div className="toast-container" role="region" aria-label="Notifications">
@@ -868,6 +943,48 @@ export default function FinalEditor() {
     </div>
   );
 }
+
+const FinalizeTemplateThumbnail = memo(function FinalizeTemplateThumbnail({ template, eager }) {
+  const hostRef = useRef(null);
+  const [loaded, setLoaded] = useState(eager);
+
+  useEffect(() => {
+    if (eager && !loaded) {
+      setLoaded(true);
+      return undefined;
+    }
+    if (loaded) return undefined;
+
+    const host = hostRef.current;
+    if (!host || typeof IntersectionObserver === 'undefined') {
+      setLoaded(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      setLoaded(true);
+      observer.disconnect();
+    }, { rootMargin: '480px 0px' });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [eager, loaded]);
+
+  return (
+    <div ref={hostRef} className="fe-thumb-preview" aria-hidden="true">
+      {loaded ? (
+        <ResumePreview
+          data={TEMPLATE_PREVIEW_DATA}
+          templateId={template.id}
+          accentColor={template.defaultColor}
+          scale={0.15}
+          thumbnail
+          className="fe-template-thumbnail"
+        />
+      ) : <div className="fe-thumb-placeholder" />}
+    </div>
+  );
+});
 
 const QUALITY_CATEGORIES = [
   ['spelling', 'Spelling'],
@@ -1167,13 +1284,17 @@ function SectionQuickActions({ sectionName, canEdit, onEdit, onDelete, onRename,
 }
 
 function SectionDialog({ title, description, confirmLabel, onCancel, onConfirm }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+  useDialogFocus(dialogRef, { onClose: onCancel, initialFocusRef: cancelRef });
+
   return (
     <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={onCancel}>
-      <div className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="section-dialog-title" onMouseDown={event => event.stopPropagation()}>
+      <div ref={dialogRef} className="fe-section-dialog" role="dialog" aria-modal="true" aria-labelledby="section-dialog-title" tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
         <h2 id="section-dialog-title">{title}</h2>
         <p>{description}</p>
         <div className="fe-section-dialog-actions">
-          <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button ref={cancelRef} type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
           <button type="button" className="btn fe-section-delete-btn" onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
@@ -1253,7 +1374,16 @@ function SortableItem({
       onMouseLeave={() => onHover?.('')}
       {...attributes}
     >
-      <span className="fe-drag-handle" {...listeners} title="Drag to reorder"><ResumeIcon name="drag" size={18} /></span>
+      <button
+        type="button"
+        className="fe-drag-handle"
+        {...listeners}
+        onClick={event => event.stopPropagation()}
+        aria-label={`Drag ${label} to reorder`}
+        title="Drag to reorder"
+      >
+        <ResumeIcon name="drag" size={18} />
+      </button>
       <span className="fe-sortable-label">{label}</span>
       <span className="fe-section-move-controls" aria-label={`Move ${label}`}>
         <button type="button" className="btn btn-icon btn-ghost fe-section-move-btn" onClick={() => onMove(id, -1)} disabled={index === 0} aria-label={`Move ${label} up`} title={`Move ${label} up`}><ResumeIcon name="arrowUp" size={15} /></button>
@@ -1346,7 +1476,10 @@ function SectionOrderList({
   const [activeId, setActiveId] = useState(null);
   const itemRefs = useRef(new Map());
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // A short hold on the explicit handle leaves normal list scrolling alone
+    // while still making touch reordering predictable on iOS and Android.
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const canAutoScroll = useCallback(element => (
@@ -1553,9 +1686,12 @@ function SectionReorderDialog({
   const selectedTemplate = getTemplateById(state.meta?.templateId);
   const supportsColumns = selectedTemplate?.layout === '2-column';
   const reorderListRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  useDialogFocus(dialogRef, { onClose, initialFocusRef: closeButtonRef });
   return (
     <div className="fe-section-dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="fe-section-dialog fe-reorder-dialog" role="dialog" aria-modal="true" aria-labelledby="reorder-section-title" onMouseDown={event => event.stopPropagation()}>
+      <section ref={dialogRef} className="fe-section-dialog fe-reorder-dialog" role="dialog" aria-modal="true" aria-labelledby="reorder-section-title" tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
         <div className="fe-reorder-dialog-header">
           <div>
             <h2 id="reorder-section-title">{supportsColumns ? 'Arrange sections' : 'Reorder sections'}</h2>
@@ -1564,7 +1700,7 @@ function SectionReorderDialog({
               : 'Drag a section or use the arrow controls to change its position. Changes appear in the preview immediately.'}
             </p>
           </div>
-          <button type="button" className="btn btn-icon btn-ghost fe-reorder-close" onClick={onClose} aria-label="Close reorder sections" title="Close"><ResumeIcon name="close" size={18} /></button>
+          <button ref={closeButtonRef} type="button" className="btn btn-icon btn-ghost fe-reorder-close" onClick={onClose} aria-label="Close reorder sections" title="Close"><ResumeIcon name="close" size={18} /></button>
         </div>
         <div className="fe-reorder-list" ref={reorderListRef}>
           <SectionOrderList

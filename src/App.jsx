@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { ResumeProvider } from './context/ResumeContext';
+import { useGlobalModalScrollLock } from './hooks/useGlobalModalScrollLock';
 import './index.css';
 
 // Lazy load pages for code splitting
@@ -48,6 +49,10 @@ function LoadingFallback() {
 }
 
 function App() {
+  // Every modal shares one iOS-safe background scroll boundary. Individual
+  // dialogs only need to expose the normal aria-modal contract.
+  useGlobalModalScrollLock();
+
   return (
     <ResumeProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>

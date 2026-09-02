@@ -9,6 +9,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useRef, useState } from 'react';
 import ResumeIcon from './ResumeIcon';
 import { addToPersonalDictionary, analyzeTextQuality } from '../utils/resumeQuality';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import './RichTextEditor.css';
 
 const DEFAULT_AI_RECOMMENDATIONS = [
@@ -245,11 +246,19 @@ export default function RichTextEditor({
   const [ignoredFingerprints, setIgnoredFingerprints] = useState(() => new Set());
   const [ignoredWords, setIgnoredWords] = useState(() => new Set());
   const wrapperRef = useRef(null);
+  const aiDialogRef = useRef(null);
+  const aiCloseRef = useRef(null);
 
   const setAIModalOpen = (isOpen) => {
     if (typeof aiModalOpen !== 'boolean') setInternalAIModalOpen(isOpen);
     onAIModalOpenChange?.(isOpen);
   };
+
+  useDialogFocus(aiDialogRef, {
+    enabled: isAIModalOpen,
+    onClose: () => setAIModalOpen(false),
+    initialFocusRef: aiCloseRef,
+  });
 
   useEffect(() => {
     if (isAIModalOpen) setSelectedAiIndexes(Array.from({ length: suggestionCount }, (_, index) => index));
@@ -286,7 +295,7 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class: 'rte-content',
-        style: `min-height: ${minHeight}px; max-height: ${maxHeight}px`,
+        style: `--rte-min-height: ${minHeight}px; --rte-max-height: ${maxHeight}px`,
         spellcheck: 'true',
         autocorrect: 'on',
         autocapitalize: 'sentences',
@@ -399,47 +408,49 @@ export default function RichTextEditor({
 
       {/* AI Modal Overlay */}
       {isAIModalOpen && (
-        <div className="rte-ai-overlay" role="dialog" aria-modal="true" aria-label={aiTitle}>
-          <div className="rte-ai-header">
-            <h3>{aiTitle}</h3>
-            <button type="button" onClick={() => setAIModalOpen(false)} aria-label="Close recommendations" title="Close recommendations"><ResumeIcon name="close" size={20} /></button>
-          </div>
-          <p className="rte-ai-description">{aiDescription}</p>
-          <div className="rte-ai-recommendations" tabIndex="0" aria-label="AI recommendations">
-            <ul>
-              {visibleAiSuggestions.map((suggestion, index) => (
-                <li key={`${index}-${suggestion}`}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selectedAiIndexes.includes(index)}
-                      onChange={() => setSelectedAiIndexes(current => current.includes(index)
-                        ? current.filter(item => item !== index)
-                        : [...current, index])}
-                    />
-                    <span>{suggestion}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rte-ai-actions">
-            <button type="button" className="rte-ai-cancel" onClick={() => setAIModalOpen(false)}>No thanks</button>
-            <button
-              type="button"
-              className="btn btn-primary rte-ai-apply"
-              disabled={!selectedAiIndexes.length || !editor}
-              onClick={() => {
-                const selectedSuggestions = visibleAiSuggestions.filter((_, index) => selectedAiIndexes.includes(index));
-                const html = `<ul>${selectedSuggestions.map(suggestion => `<li>${escapeHtml(suggestion)}</li>`).join('')}</ul>`;
-                if (onApplyRecommendations) onApplyRecommendations(html, selectedSuggestions);
-                else editor.commands.setContent(html);
-                setAIModalOpen(false);
-              }}
-            >
-              Add {selectedAiIndexes.length || ''} recommendation{selectedAiIndexes.length === 1 ? '' : 's'}
-            </button>
-          </div>
+        <div className="rte-ai-backdrop" role="presentation" onMouseDown={() => setAIModalOpen(false)}>
+          <section ref={aiDialogRef} className="rte-ai-overlay" role="dialog" aria-modal="true" aria-label={aiTitle} tabIndex={-1} onMouseDown={event => event.stopPropagation()}>
+            <div className="rte-ai-header">
+              <h3>{aiTitle}</h3>
+              <button ref={aiCloseRef} type="button" onClick={() => setAIModalOpen(false)} aria-label="Close recommendations" title="Close recommendations"><ResumeIcon name="close" size={20} /></button>
+            </div>
+            <p className="rte-ai-description">{aiDescription}</p>
+            <div className="rte-ai-recommendations" tabIndex="0" aria-label="AI recommendations">
+              <ul>
+                {visibleAiSuggestions.map((suggestion, index) => (
+                  <li key={`${index}-${suggestion}`}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={selectedAiIndexes.includes(index)}
+                        onChange={() => setSelectedAiIndexes(current => current.includes(index)
+                          ? current.filter(item => item !== index)
+                          : [...current, index])}
+                      />
+                      <span>{suggestion}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rte-ai-actions">
+              <button type="button" className="rte-ai-cancel" onClick={() => setAIModalOpen(false)}>No thanks</button>
+              <button
+                type="button"
+                className="btn btn-primary rte-ai-apply"
+                disabled={!selectedAiIndexes.length || !editor}
+                onClick={() => {
+                  const selectedSuggestions = visibleAiSuggestions.filter((_, index) => selectedAiIndexes.includes(index));
+                  const html = `<ul>${selectedSuggestions.map(suggestion => `<li>${escapeHtml(suggestion)}</li>`).join('')}</ul>`;
+                  if (onApplyRecommendations) onApplyRecommendations(html, selectedSuggestions);
+                  else editor.commands.setContent(html);
+                  setAIModalOpen(false);
+                }}
+              >
+                Add {selectedAiIndexes.length || ''} recommendation{selectedAiIndexes.length === 1 ? '' : 's'}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

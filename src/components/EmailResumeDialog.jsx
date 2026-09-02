@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   downloadResumeExport,
@@ -6,17 +6,9 @@ import {
   prepareResumeExport,
 } from '../utils/pdfGenerator';
 import { DOCX_PREPARING_LABEL, docxExportFailureFeedback, docxExportFailureText, logDocxExportFailure } from '../utils/docxExportFeedback';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import ResumeIcon from './ResumeIcon';
 import './EmailResumeDialog.css';
-
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
 
 const FORMAT_OPTIONS = [
   {
@@ -69,7 +61,6 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
   const descriptionId = useId();
   const dialogRef = useRef(null);
   const firstRadioRef = useRef(null);
-  const previousFocusRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const operationRef = useRef('');
   const prepareControllerRef = useRef(null);
@@ -82,6 +73,13 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
+  const dismiss = useCallback(() => {
+    prepareControllerRef.current?.abort();
+    onCloseRef.current?.();
+  }, []);
+
+  useDialogFocus(dialogRef, { onClose: dismiss, initialFocusRef: firstRadioRef });
+
   const canShareFile = supportsFileSharing(artifact);
 
   useEffect(() => {
@@ -90,47 +88,9 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
 
   useEffect(() => {
     mountedRef.current = true;
-    previousFocusRef.current = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const focusTimer = window.setTimeout(() => firstRadioRef.current?.focus(), 0);
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        prepareControllerRef.current?.abort();
-        onCloseRef.current?.();
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-      const focusable = [...(dialogRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) || [])]
-        .filter(element => element.getAttribute('aria-hidden') !== 'true');
-      if (!focusable.length) {
-        event.preventDefault();
-        dialogRef.current?.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       mountedRef.current = false;
       prepareControllerRef.current?.abort();
-      window.clearTimeout(focusTimer);
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus?.();
     };
   }, []);
 
@@ -295,8 +255,7 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
       className="email-resume-dialog-backdrop"
       onMouseDown={(event) => {
         if (event.target !== event.currentTarget) return;
-        prepareControllerRef.current?.abort();
-        onClose?.();
+        dismiss();
       }}
     >
       <section
@@ -317,10 +276,7 @@ export default function EmailResumeDialog({ state, resumeName, onClose, onNotify
           <button
             type="button"
             className="email-resume-dialog__close"
-            onClick={() => {
-              prepareControllerRef.current?.abort();
-              onClose?.();
-            }}
+            onClick={dismiss}
             aria-label="Close email resume dialog"
             title="Close"
           >

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RESUME_EXAMPLES, EXAMPLE_CATEGORIES } from '../../data/examples';
 import { useResume } from '../../context/ResumeContext';
 import Navbar from '../../components/Navbar';
 import ResumeIcon from '../../components/ResumeIcon';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import './Examples.css';
 
 export default function Examples() {
@@ -11,6 +12,16 @@ export default function Examples() {
   const [selectedExample, setSelectedExample] = useState(null);
   const navigate = useNavigate();
   const { dispatch } = useResume();
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useDialogFocus(dialogRef, {
+    enabled: Boolean(selectedExample),
+    initialFocusRef: closeRef,
+    onClose: () => setSelectedExample(null),
+  });
 
   const filtered = activeCategory === 'All'
     ? RESUME_EXAMPLES
@@ -77,18 +88,27 @@ export default function Examples() {
 
       {/* Preview Modal */}
       {selectedExample && (
-        <div className="example-modal-backdrop" onClick={() => setSelectedExample(null)}>
-          <div className="example-modal" onClick={e => e.stopPropagation()}>
-            <button className="example-modal-close" onClick={() => setSelectedExample(null)} aria-label="Close example preview" title="Close example preview"><ResumeIcon name="close" size={20} /></button>
+        <div className="example-modal-backdrop" role="presentation" onMouseDown={() => setSelectedExample(null)}>
+          <section
+            ref={dialogRef}
+            className="example-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
+            tabIndex={-1}
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <button ref={closeRef} type="button" className="example-modal-close" onClick={() => setSelectedExample(null)} aria-label="Close example preview" title="Close example preview"><ResumeIcon name="close" size={20} /></button>
             <div className="example-modal-header">
               <span className="example-modal-icon"><ResumeIcon name="document" size={30} /></span>
               <div>
-                <h2>{selectedExample.title}</h2>
+                <h2 id={titleId}>{selectedExample.title}</h2>
                 <span className="example-card-category">{selectedExample.category}</span>
               </div>
             </div>
 
-            <div className="example-modal-body">
+            <div id={descriptionId} className="example-modal-body">
               <div className="example-modal-section">
                 <h4>Summary</h4>
                 <div dangerouslySetInnerHTML={{ __html: selectedExample.data.summary.content }} />
@@ -115,12 +135,12 @@ export default function Examples() {
             </div>
 
             <div className="example-modal-footer">
-              <button className="btn btn-primary" onClick={() => handleUseTemplate(selectedExample)}>
+              <button type="button" className="btn btn-primary" onClick={() => handleUseTemplate(selectedExample)}>
                 Use This Template <ResumeIcon name="arrowLeft" size={16} style={{ transform: 'rotate(180deg)' }} />
               </button>
-              <button className="btn btn-ghost" onClick={() => setSelectedExample(null)}>Close</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setSelectedExample(null)}>Close</button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>

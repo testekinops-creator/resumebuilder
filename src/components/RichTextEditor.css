@@ -58,6 +58,14 @@
   flex: 0 0 32px;
 }
 
+@media (max-width: 900px), (pointer: coarse) {
+  .rte-btn {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}
+
 .rte-btn:hover {
   background: var(--color-surface-tertiary);
   color: var(--color-text-primary);
@@ -103,18 +111,27 @@
   transform: translateY(-1px);
 }
 
-/* The AI panel stays inside an editor, but only its recommendation list
-   scrolls. This avoids clipped actions at the bottom of a short editor and
-   keeps the close/apply controls visible at every viewport height. */
-.rte-ai-overlay {
+.rte-ai-backdrop {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 20;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+/* Only the recommendation list scrolls. The modal stays within the real
+   viewport so close/apply controls remain reachable above mobile keyboards. */
+.rte-ai-overlay {
+  position: relative;
   display: flex;
-  width: min(540px, calc(100vw - 32px));
-  height: min(520px, calc(100dvh - 32px));
-  max-height: calc(100dvh - 32px);
+  width: min(540px, 100%);
+  height: min(520px, calc(100svh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom))));
+  height: min(520px, calc(100dvh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom))));
+  max-height: calc(100svh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  max-height: calc(100dvh - (var(--space-8) + env(safe-area-inset-top) + env(safe-area-inset-bottom)));
   min-height: 0;
   flex-direction: column;
   padding: var(--space-5);
@@ -124,7 +141,6 @@
   color: var(--color-text-primary);
   box-sizing: border-box;
   box-shadow: 0 22px 56px rgba(15, 23, 42, 0.32);
-  transform: translate(-50%, -50%);
 }
 
 .rte-ai-header,
@@ -139,6 +155,7 @@
 .rte-ai-header h3 { margin: 0; font-size: var(--font-size-lg); }
 .rte-ai-header button,
 .rte-ai-cancel {
+  min-height: 44px;
   border: 0;
   background: none;
   color: var(--color-text-link);
@@ -147,7 +164,11 @@
 }
 
 .rte-ai-header button {
+  width: 44px;
+  min-width: 44px;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-1);
   color: var(--color-text-secondary);
 }
@@ -191,13 +212,15 @@
 .rte-ai-apply { min-width: 148px; border-radius: 999px; }
 
 @media (max-width: 480px) {
-  .rte-ai-overlay { padding: var(--space-4); }
+  .rte-ai-overlay { padding: var(--space-4); box-shadow: var(--shadow-lg); }
   .rte-ai-actions { align-items: stretch; flex-direction: column-reverse; }
   .rte-ai-apply { width: 100%; }
 }
 
 /* Content Area */
 .rte-content {
+  min-height: var(--rte-min-height, 200px);
+  max-height: var(--rte-max-height, 480px);
   padding: var(--space-4);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
@@ -210,6 +233,14 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  /* Builder pages own the scroll gesture on touch layouts. */
+  .rte-content {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 .rte-content *,
@@ -277,6 +308,12 @@
 
 .ProseMirror {
   min-height: inherit;
+}
+
+/* Tiptap adds ProseMirror alongside rte-content; keep the configured editor
+   height from being replaced by the wrapper's inherited zero minimum. */
+.ProseMirror.rte-content {
+  min-height: var(--rte-min-height, 200px);
 }
 
 .rte-editor-surface { min-width: 0; }

@@ -189,7 +189,7 @@ export default function UploadOrScratch() {
           )}
 
           {pendingImport && (
-            <section className="upload-replace-confirmation" role="dialog" aria-modal="true" aria-labelledby="replace-resume-title">
+            <section className="upload-replace-confirmation" role="region" aria-labelledby="replace-resume-title">
               <h2 id="replace-resume-title">Replace the current resume?</h2>
               <p>Importing <strong>{resumeNameFromFile(pendingImport.file)}</strong> will replace the current editable resume. Your existing resume remains available through Undo after import.</p>
               <div className="upload-confirm-actions">

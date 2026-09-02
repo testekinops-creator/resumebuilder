@@ -1,5 +1,7 @@
 .cover-letter-page {
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
   background: var(--page-bg);
 }
 
@@ -8,6 +10,8 @@
   max-width: 1200px;
   margin: 0 auto;
   min-height: calc(100vh - 56px);
+  min-height: calc(100svh - 56px);
+  min-height: calc(100dvh - 56px);
 }
 
 /* Sidebar */

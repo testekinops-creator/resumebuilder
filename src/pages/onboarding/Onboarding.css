@@ -405,7 +405,7 @@
   border: 3px solid transparent;
   border-radius: var(--radius-lg);
   padding: var(--space-3);
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
@@ -458,6 +458,17 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: 190px;
+}
+
+.template-thumbnail-placeholder {
+  width: 131px;
+  height: 185px;
+  margin-top: 2px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--color-surface-secondary), var(--color-surface-tertiary));
 }
 
 .template-thumbnail-resume {
@@ -582,6 +593,19 @@
 .template-preview-button:hover {
   border-color: var(--color-text-link);
   background: var(--color-info-light);
+}
+
+@media (hover: none) {
+  .template-card:hover {
+    border-color: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .template-card.selected:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent);
+  }
 }
 
 .template-preview-modal {

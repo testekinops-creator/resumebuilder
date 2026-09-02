@@ -4,6 +4,7 @@ import Sidebar from '../../components/Sidebar';
 import ResumePreview from '../../components/ResumePreview';
 import ResumeIcon from '../../components/ResumeIcon';
 import ResumePreviewViewer from '../../components/ResumePreviewViewer';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import './Builder.css';
 
 const ROUTE_TO_SECTION = {
@@ -27,12 +28,17 @@ const ROUTE_TO_SECTION = {
 
 export default function BuilderLayout() {
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const showDesktopPreview = useMediaQuery('(min-width: 1181px)');
   const navigate = useNavigate();
   const location = useLocation();
 
   const activeSection = useMemo(() => {
     return ROUTE_TO_SECTION[location.pathname] || '';
   }, [location.pathname]);
+  // Every regular builder step owns its Preview action through StepNavigation.
+  // Smart Apply is the only Builder route without that navigation, so it alone
+  // gets the layout-level compact preview trigger below the desktop breakpoint.
+  const showLayoutPreviewTrigger = !showDesktopPreview && location.pathname === '/builder/smart-apply';
 
   return (
     <div className="builder-layout">
@@ -42,21 +48,28 @@ export default function BuilderLayout() {
           <ResumeIcon name="arrowLeft" size={16} />Go Back
         </button>
         <Outlet />
+        {showLayoutPreviewTrigger && (
+          <button type="button" className="btn btn-outline builder-mobile-preview-trigger" onClick={() => setShowMobilePreview(true)}>
+            <ResumeIcon name="preview" size={18} />Preview resume
+          </button>
+        )}
       </main>
-      <aside className="builder-preview" aria-label="Resume preview">
-        <div className="stat-banner">
-          <span className="stat-banner-label">Our Resume Builder delivers results</span>
-          <div className="stat-banner-row">
-            <span className="stat-banner-arrow"><ResumeIcon name="arrowUp" size={18} /></span>
-            <span className="stat-banner-value">42%</span>
-            <span className="stat-banner-text">Higher response rate from recruiters</span>
+      {showDesktopPreview && (
+        <aside className="builder-preview" aria-label="Resume preview">
+          <div className="stat-banner">
+            <span className="stat-banner-label">Our Resume Builder delivers results</span>
+            <div className="stat-banner-row">
+              <span className="stat-banner-arrow"><ResumeIcon name="arrowUp" size={18} /></span>
+              <span className="stat-banner-value">42%</span>
+              <span className="stat-banner-text">Higher response rate from recruiters</span>
+            </div>
           </div>
-        </div>
-        <ResumePreview highlightSection={activeSection} />
-        <button className="btn btn-outline btn-sm builder-preview-expand" onClick={() => setShowMobilePreview(true)}>
-          <ResumeIcon name="preview" size={17} />View full preview
-        </button>
-      </aside>
+          <ResumePreview highlightSection={activeSection} />
+          <button type="button" className="btn btn-outline btn-sm builder-preview-expand" onClick={() => setShowMobilePreview(true)}>
+            <ResumeIcon name="preview" size={17} />View full preview
+          </button>
+        </aside>
+      )}
 
       {showMobilePreview && (
         <ResumePreviewViewer

@@ -312,6 +312,34 @@ function resumeReducer(state, action) {
       }
       return saveHistory({ ...state, meta: nextMeta });
     }
+    case 'SET_TEMPLATE_AND_DESIGN': {
+      const templateId = action.payload?.templateId;
+      if (!templateId) return state;
+      const nextMeta = { ...state.meta, templateId };
+      const isTemplateSwitch = templateId !== state.meta?.templateId;
+      const designPatch = action.payload?.design && typeof action.payload.design === 'object'
+        ? action.payload.design
+        : {};
+      // Preserve the legacy-layout migration performed by SET_META while
+      // committing a template choice and its palette in one history update.
+      const templateLayouts = !isTemplateSwitch || hasTemplateLayoutRecords(state.design?.templateLayouts)
+        ? state.design.templateLayouts
+        : {
+          [state.meta?.templateId || 'classic']: {
+            sectionOrder: Array.isArray(state.design?.sectionOrder) ? state.design.sectionOrder : [],
+            sectionColumns: state.design?.sectionColumns || {},
+          },
+        };
+      return saveHistory({
+        ...state,
+        meta: nextMeta,
+        design: {
+          ...state.design,
+          ...designPatch,
+          templateLayouts,
+        },
+      });
+    }
     case 'SET_CONTACT':
       return saveHistory({ ...state, contact: { ...state.contact, ...action.payload } });
 

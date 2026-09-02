@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ResumeIcon from './ResumeIcon';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import './ResumePreviewViewer.css';
 
 // The native CSS A4 canvas used by ResumePreview (210mm x 297mm at 96dpi).
@@ -22,13 +23,28 @@ export default function ResumePreviewViewer({
   renderResume,
   footer,
 }) {
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
   const pinchRef = useRef(null);
+  const fitFrameRef = useRef(0);
+  const pageMeasureFrameRef = useRef(0);
+  const scrollFrameRef = useRef(0);
+  const pinchFrameRef = useRef(0);
+  const pendingPinchZoomRef = useRef(null);
+  const canvasPaddingRef = useRef(0);
   const [zoom, setZoom] = useState(100);
   const [fitMode, setFitMode] = useState('width');
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
+  const dismiss = useCallback(() => onClose?.(), [onClose]);
+
+  useDialogFocus(dialogRef, { onClose: dismiss, initialFocusRef: closeButtonRef });
+
+  useEffect(() => () => {
+    window.cancelAnimationFrame(pinchFrameRef.current);
+  }, []);
 
   const fit = useCallback((mode) => {
     const viewport = viewportRef.current;
@@ -57,11 +73,16 @@ export default function ResumePreviewViewer({
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
     const resizeObserver = new ResizeObserver(() => {
-      if (fitMode) fit(fitMode);
+      if (!fitMode) return;
+      window.cancelAnimationFrame(fitFrameRef.current);
+      fitFrameRef.current = window.requestAnimationFrame(() => fit(fitMode));
     });
     resizeObserver.observe(viewport);
     if (fitMode) fit(fitMode);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      window.cancelAnimationFrame(fitFrameRef.current);
+    };
   }, [fit, fitMode]);
 
   useLayoutEffect(() => {
@@ -73,52 +94,49 @@ export default function ResumePreviewViewer({
       const nextCount = Math.max(1, Math.ceil((page?.scrollHeight || A4_HEIGHT) / A4_HEIGHT));
       setPageCount(nextCount);
       setCurrentPage(current => Math.min(current, nextCount));
+      const styles = window.getComputedStyle(canvas);
+      canvasPaddingRef.current = parseFloat(styles.paddingTop) || 0;
+    };
+
+    const scheduleMeasure = () => {
+      window.cancelAnimationFrame(pageMeasureFrameRef.current);
+      pageMeasureFrameRef.current = window.requestAnimationFrame(measurePages);
     };
 
     measurePages();
-    const observer = new ResizeObserver(measurePages);
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(canvas);
     const page = canvas.querySelector('.preview-page');
     if (page) observer.observe(page);
-    return () => observer.disconnect();
-  }, [renderResume, zoom]);
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(pageMeasureFrameRef.current);
+    };
+  }, [zoom]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
 
     const updateCurrentPage = () => {
-      const canvas = canvasRef.current;
-      const canvasStyle = canvas ? window.getComputedStyle(canvas) : null;
-      const paddingTop = canvasStyle ? parseFloat(canvasStyle.paddingTop) || 0 : 0;
+      scrollFrameRef.current = 0;
       const pageHeight = A4_HEIGHT * (zoom / 100);
-      const relativeTop = Math.max(0, viewport.scrollTop - paddingTop);
+      const relativeTop = Math.max(0, viewport.scrollTop - canvasPaddingRef.current);
       setCurrentPage(Math.min(pageCount, Math.max(1, Math.floor((relativeTop + pageHeight * 0.35) / pageHeight) + 1)));
     };
 
-    viewport.addEventListener('scroll', updateCurrentPage, { passive: true });
+    const scheduleCurrentPage = () => {
+      if (scrollFrameRef.current) return;
+      scrollFrameRef.current = window.requestAnimationFrame(updateCurrentPage);
+    };
+
+    viewport.addEventListener('scroll', scheduleCurrentPage, { passive: true });
     updateCurrentPage();
-    return () => viewport.removeEventListener('scroll', updateCurrentPage);
-  }, [pageCount, zoom]);
-
-  useEffect(() => {
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') onClose?.();
-    };
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
-
-    // The page behind the modal must not keep a second, detached scrollbar.
-    // Only the document viewport inside this viewer is scrollable while open.
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    window.addEventListener('keydown', closeOnEscape);
     return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
-      window.removeEventListener('keydown', closeOnEscape);
+      viewport.removeEventListener('scroll', scheduleCurrentPage);
+      window.cancelAnimationFrame(scrollFrameRef.current);
     };
-  }, [onClose]);
+  }, [pageCount, zoom]);
 
   const changeZoom = (amount) => {
     setFitMode('');
@@ -132,13 +150,10 @@ export default function ResumePreviewViewer({
 
   const goToPage = (pageNumber) => {
     const viewport = viewportRef.current;
-    const canvas = canvasRef.current;
-    if (!viewport || !canvas) return;
+    if (!viewport || !canvasRef.current) return;
     const nextPage = Math.min(pageCount, Math.max(1, pageNumber));
-    const canvasStyle = window.getComputedStyle(canvas);
-    const paddingTop = parseFloat(canvasStyle.paddingTop) || 0;
     viewport.scrollTo({
-      top: paddingTop + ((nextPage - 1) * A4_HEIGHT * (zoom / 100)),
+      top: canvasPaddingRef.current + ((nextPage - 1) * A4_HEIGHT * (zoom / 100)),
       behavior: 'smooth',
     });
     setCurrentPage(nextPage);
@@ -160,16 +175,28 @@ export default function ResumePreviewViewer({
     if (event.touches.length !== 2 || !pinchRef.current) return;
     event.preventDefault();
     const scale = touchDistance(event.touches) / Math.max(1, pinchRef.current.distance);
-    setZoom(clampZoom(pinchRef.current.zoom * scale));
+    pendingPinchZoomRef.current = clampZoom(pinchRef.current.zoom * scale);
+    if (pinchFrameRef.current) return;
+    pinchFrameRef.current = window.requestAnimationFrame(() => {
+      pinchFrameRef.current = 0;
+      if (pendingPinchZoomRef.current !== null) setZoom(pendingPinchZoomRef.current);
+      pendingPinchZoomRef.current = null;
+    });
   };
 
   const handleTouchEnd = (event) => {
-    if (event.touches.length < 2) pinchRef.current = null;
+    if (event.touches.length >= 2) return;
+    pinchRef.current = null;
+    if (!pinchFrameRef.current) return;
+    window.cancelAnimationFrame(pinchFrameRef.current);
+    pinchFrameRef.current = 0;
+    if (pendingPinchZoomRef.current !== null) setZoom(pendingPinchZoomRef.current);
+    pendingPinchZoomRef.current = null;
   };
 
   return (
-    <div className="resume-viewer-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="resume-viewer" role="dialog" aria-modal="true" aria-label={title} onMouseDown={event => event.stopPropagation()}>
+    <div className="resume-viewer-backdrop" role="presentation" onMouseDown={dismiss}>
+      <section ref={dialogRef} className="resume-viewer" role="dialog" aria-modal="true" aria-label={title} tabIndex="-1" onMouseDown={event => event.stopPropagation()}>
         <header className="resume-viewer-toolbar">
           <h2>{title}</h2>
           <div className="resume-viewer-controls" role="toolbar" aria-label="Resume preview controls">
@@ -194,7 +221,7 @@ export default function ResumePreviewViewer({
                 <ResumeIcon name="arrowRight" size={17} />
               </button>
             </div>
-            <button type="button" className="resume-viewer-icon-button resume-viewer-close" onClick={onClose} aria-label="Close preview" title="Close preview">
+            <button ref={closeButtonRef} type="button" className="resume-viewer-icon-button resume-viewer-close" onClick={dismiss} aria-label="Close preview" title="Close preview">
               <ResumeIcon name="close" size={19} />
             </button>
           </div>

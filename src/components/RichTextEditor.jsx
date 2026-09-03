@@ -10,6 +10,11 @@ import { useEffect, useRef, useState } from 'react';
 import ResumeIcon from './ResumeIcon';
 import { addToPersonalDictionary, analyzeTextQuality } from '../utils/resumeQuality';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import {
+  convertSelectionToList,
+  normalizePastedPlainText,
+  normalizePastedSlice,
+} from '../utils/richTextListNormalization';
 import './RichTextEditor.css';
 
 const DEFAULT_AI_RECOMMENDATIONS = [
@@ -139,7 +144,7 @@ const MenuBar = ({ editor }) => {
         <button
           type="button"
           className={`rte-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          onClick={() => convertSelectionToList(editor, 'bullet')}
           title="Bullet List"
         >
           <ResumeIcon name="sections" size={18} />
@@ -147,7 +152,7 @@ const MenuBar = ({ editor }) => {
         <button
           type="button"
           className={`rte-btn ${editor.isActive('orderedList') ? 'active' : ''}`}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          onClick={() => convertSelectionToList(editor, 'ordered')}
           title="Numbered List"
         >
           <ResumeIcon name="reorder" size={18} />
@@ -275,6 +280,10 @@ export default function RichTextEditor({
         // behavior is registered exactly once in Tiptap 3.
         link: false,
         underline: false,
+        // Keep inline marks when paragraphs are wrapped or switched between
+        // bullet and numbered lists.
+        bulletList: { keepMarks: true },
+        orderedList: { keepMarks: true },
       }),
       Underline,
       ResumeImage,
@@ -293,6 +302,8 @@ export default function RichTextEditor({
       setQualityRevision(revision => revision + 1);
     },
     editorProps: {
+      transformPasted: normalizePastedSlice,
+      transformPastedText: normalizePastedPlainText,
       attributes: {
         class: 'rte-content',
         style: `--rte-min-height: ${minHeight}px; --rte-max-height: ${maxHeight}px`,
